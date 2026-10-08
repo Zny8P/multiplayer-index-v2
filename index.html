@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
+
+  <title>Multiplayer WebSocket</title>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+
+      overflow: hidden;
+
+      background: #111;
+
+      font-family: Arial, sans-serif;
+
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+
+      display: flex;
+
+      justify-content: center;
+      align-items: center;
+
+    }
+
+    #game-wrapper {
+
+      width: 100vw;
+      height: 100vh;
+
+      display: flex;
+
+      justify-content: center;
+      align-items: center;
+
+      position: relative;
+
+    }
+
+    #game {
+
+      width: 800px;
+      height: 600px;
+
+      background:
+        linear-gradient(
+          rgba(255,255,255,0.03) 1px,
+          transparent 1px
+        ),
+        linear-gradient(
+          90deg,
+          rgba(255,255,255,0.03) 1px,
+          transparent 1px
+        ),
+        #222;
+
+      background-size: 40px 40px;
+
+      border: 2px solid #555;
+
+      position: relative;
+
+      overflow: hidden;
+
+      transform-origin: center center;
+
+    }
+
+    .player {
+
+      width: 30px;
+      height: 30px;
+
+      position: absolute;
+
+      border-radius: 6px;
+
+      transform: translateZ(0);
+
+    }
+
+    .player.me {
+
+      border: 3px solid white;
+
+      box-shadow:
+        0 0 8px white;
+
+    }
+
+    #status {
+
+      position: fixed;
+
+      top: 15px;
+      left: 15px;
+
+      z-index: 100;
+
+      background: rgba(0, 0, 0, 0.65);
+
+      color: white;
+
+      padding: 8px 12px;
+
+      border-radius: 8px;
+
+      font-size: 14px;
+
+    }
+
+    /* =========================
+       JOYSTICK
+       ========================= */
+
+    #joystick {
+
+      position: fixed;
+
+      left: 25px;
+      bottom: 25px;
+
+      width: 140px;
+      height: 140px;
+
+      border-radius: 50%;
+
+      background: rgba(255,255,255,0.12);
+
+      border: 2px solid rgba(255,255,255,0.25);
+
+      display: none;
+
+      z-index: 200;
+
+      touch-action: none;
+
+    }
+
+    #joystick-knob {
+
+      position: absolute;
+
+      width: 60px;
+      height: 60px;
+
+      left: 40px;
+      top: 40px;
+
+      border-radius: 50%;
+
+      background: rgba(255,255,255,0.45);
+
+      border: 2px solid rgba(255,255,255,0.7);
+
+    }
+
+    /* Celular */
+
+    @media (max-width: 800px), (max-height: 600px) {
+
+      #joystick {
+        display: block;
+      }
+
+      #status {
+
+        top: 10px;
+        left: 10px;
+
+        font-size: 12px;
+
+      }
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div id="game-wrapper">
+
+    <div id="game"></div>
+
+  </div>
+
+  <div id="status">
+    Conectando...
+  </div>
+
+  <div id="joystick">
+
+    <div id="joystick-knob"></div>
+
+  </div>
+
+<script>
+
+const game = document.getElementById("game");
+const status = document.getElementById("status");
+
+const joystick = document.getElementById("joystick");
+const joystickKnob = document.getElementById("joystick-knob");
+
+let socket;
+
+let myId = null;
+
+let players = {};
+
+let worldWidth = 800;
+let worldHeight = 600;
+
+
+/*
+==================================================
+CONEXÃO
+==================================================
+*/
+
+function connect() {
+
+  /*
+    Endereço do servidor online hospedado no Render.
+    Convertemos https:// para wss:// para estabelecer a conexão WebSocket.
+  */
+  const serverURL = "wss://multiplayer-v2.onrender.com";
+
+  socket = new WebSocket(serverURL);
+
+  socket.onopen = () => {
+    status.textContent = "🟢 Conectado";
+  };
+
+  socket.onclose = () => {
+    status.textContent = "🔴 Desconectado";
+  };
+
+  socket.onerror = () => {
+    status.textContent = "⚠️ Erro de conexão";
+  };
+
+  socket.onmessage = event => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === "init") {
+      myId = data.id;
+      players = {};
+
+      for (const player of data.players) {
+        players[player.id] = player;
+      }
+
+      if (data.world) {
+        worldWidth = data.world.width;
+        worldHeight = data.world.height;
+      }
+
+      render();
+    }
+
+    if (data.type === "players") {
+      players = {};
+
+      for (const player of data.players) {
+        players[player.id] = player;
+      }
+
+      render();
+    }
+  };
+
+}
+
+
+/*
+==================================================
+CONTROLES
+==================================================
+*/
+
+const input = {
+
+  up: false,
+  down: false,
+  left: false,
+  right: false
+
+};
+
+
+/*
+==================================================
+TECLADO
+==================================================
+*/
+
+document.addEventListener("keydown", event => {
+
+  const key = event.key.toLowerCase();
+
+  if (
+    key === "w" ||
+    key === "arrowup"
+  ) {
+    input.up = true;
+  }
+
+  if (
+    key === "s" ||
+    key === "arrowdown"
+  ) {
+    input.down = true;
+  }
+
+  if (
+    key === "a" ||
+    key === "arrowleft"
+  ) {
+    input.left = true;
+  }
+
+  if (
+    key === "d" ||
+    key === "arrowright"
+  ) {
+    input.right = true;
+  }
+
+});
+
+
+document.addEventListener("keyup", event => {
+
+  const key = event.key.toLowerCase();
+
+  if (
+    key === "w" ||
+    key === "arrowup"
+  ) {
+    input.up = false;
+  }
+
+  if (
+    key === "s" ||
+    key === "arrowdown"
+  ) {
+    input.down = false;
+  }
+
+  if (
+    key === "a" ||
+    key === "arrowleft"
+  ) {
+    input.left = false;
+  }
+
+  if (
+    key === "d" ||
+    key === "arrowright"
+  ) {
+    input.right = false;
+  }
+
+});
+
+
+/*
+==================================================
+ENVIA CONTROLES PARA O SERVIDOR
+==================================================
+*/
+
+setInterval(() => {
+
+  if (!socket) return;
+
+  if (socket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+
+  socket.send(JSON.stringify({
+
+    type: "input",
+
+    up: input.up,
+    down: input.down,
+    left: input.left,
+    right: input.right
+
+  }));
+
+}, 1000 / 30);
+
+
+/*
+==================================================
+JOYSTICK
+==================================================
+*/
+
+let joystickActive = false;
+
+let joystickX = 0;
+let joystickY = 0;
+
+
+function updateJoystick(clientX, clientY) {
+
+  const rect = joystick.getBoundingClientRect();
+
+  const centerX =
+    rect.left + rect.width / 2;
+
+  const centerY =
+    rect.top + rect.height / 2;
+
+  let dx = clientX - centerX;
+  let dy = clientY - centerY;
+
+  const maxDistance = 40;
+
+  const distance =
+    Math.sqrt(dx * dx + dy * dy);
+
+  if (distance > maxDistance) {
+
+    dx =
+      dx / distance * maxDistance;
+
+    dy =
+      dy / distance * maxDistance;
+
+  }
+
+  joystickX = dx / maxDistance;
+  joystickY = dy / maxDistance;
+
+  joystickKnob.style.transform =
+    `translate(${dx}px, ${dy}px)`;
+
+  input.left = joystickX < -0.25;
+  input.right = joystickX > 0.25;
+
+  input.up = joystickY < -0.25;
+  input.down = joystickY > 0.25;
+
+}
+
+
+function resetJoystick() {
+
+  joystickActive = false;
+
+  joystickX = 0;
+  joystickY = 0;
+
+  joystickKnob.style.transform =
+    "translate(0px, 0px)";
+
+  input.up = false;
+  input.down = false;
+  input.left = false;
+  input.right = false;
+
+}
+
+
+joystick.addEventListener(
+  "pointerdown",
+  event => {
+
+    joystickActive = true;
+
+    joystick.setPointerCapture(event.pointerId);
+
+    updateJoystick(
+      event.clientX,
+      event.clientY
+    );
+
+  }
+);
+
+
+joystick.addEventListener(
+  "pointermove",
+  event => {
+
+    if (!joystickActive) return;
+
+    updateJoystick(
+      event.clientX,
+      event.clientY
+    );
+
+  }
+);
+
+
+joystick.addEventListener(
+  "pointerup",
+  resetJoystick
+);
+
+
+joystick.addEventListener(
+  "pointercancel",
+  resetJoystick
+);
+
+
+/*
+==================================================
+RESPONSIVIDADE
+==================================================
+*/
+
+function resizeGame() {
+
+  const scaleX =
+    window.innerWidth / worldWidth;
+
+  const scaleY =
+    window.innerHeight / worldHeight;
+
+  const scale =
+    Math.min(scaleX, scaleY, 1);
+
+  game.style.transform =
+    `scale(${scale})`;
+
+}
+
+
+window.addEventListener(
+  "resize",
+  resizeGame
+);
+
+resizeGame();
+
+
+/*
+==================================================
+RENDER
+==================================================
+*/
+
+function render() {
+
+  document
+    .querySelectorAll(".player")
+    .forEach(element => {
+      element.remove();
+    });
+
+
+  for (const player of Object.values(players)) {
+
+    const element =
+      document.createElement("div");
+
+    element.className = "player";
+
+    if (player.id === myId) {
+
+      element.classList.add("me");
+
+    }
+
+    element.style.left =
+      `${player.x}px`;
+
+    element.style.top =
+      `${player.y}px`;
+
+    element.style.background =
+      player.color;
+
+    game.appendChild(element);
+
+  }
+
+}
+
+
+/*
+==================================================
+INICIA
+==================================================
+*/
+
+connect();
+
+</script>
+
+</body>
+
+</html>
