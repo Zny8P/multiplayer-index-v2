@@ -329,12 +329,10 @@ resizeCanvas();
    CONEXÃO WEBSOCKET
    ================================================== */
 function connect(username) {
-  // Previne a criação de múltiplas conexões caso o botão seja clicado várias vezes
   if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
     return;
   }
 
-  // Bloqueia o botão e altera o texto para feedback visual do jogador
   joinBtn.disabled = true;
   joinBtn.textContent = "Entrando...";
 
@@ -348,8 +346,6 @@ function connect(username) {
 
   socket.onclose = () => {
     status.textContent = "🔴 Desconectado (tentando reconectar...)";
-    
-    // Libera o botão caso a conexão caia
     joinBtn.disabled = false;
     joinBtn.textContent = "Entrar no Jogo";
 
@@ -358,11 +354,8 @@ function connect(username) {
 
   socket.onerror = () => {
     status.textContent = "⚠️ Erro de conexão";
-    
-    // Libera o botão em caso de erro na tentativa de conexão
     joinBtn.disabled = false;
     joinBtn.textContent = "Entrar no Jogo";
-
     socket.close();
   };
 
@@ -376,10 +369,8 @@ function connect(username) {
         worldHeight = data.world.height;
       }
       if (data.bushes) bushes = data.bushes;
-
       loginScreen.style.display = "none";
 
-      // Restaura o estado original do botão
       joinBtn.disabled = false;
       joinBtn.textContent = "Entrar no Jogo";
     }
@@ -481,6 +472,35 @@ function updateKeyboardAim() {
 }
 
 /* ==================================================
+   GERENCIAMENTO DE FOCO E PERDA DE CONTROLE
+   ================================================== */
+let resetLeftJoystick = null;
+let resetRightJoystick = null;
+
+function resetInputs() {
+  input.up = false;
+  input.down = false;
+  input.left = false;
+  input.right = false;
+  input.shoot = false;
+  input.reload = false;
+
+  for (const k in keysPressed) {
+    keysPressed[k] = false;
+  }
+
+  if (resetLeftJoystick) resetLeftJoystick();
+  if (resetRightJoystick) resetRightJoystick();
+}
+
+window.addEventListener("blur", resetInputs);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    resetInputs();
+  }
+});
+
+/* ==================================================
    JOYSTICKS E BOTÃO FIRE (MOBILE)
    ================================================== */
 function setupJoystick(elementId, knobId, onMove, onReset) {
@@ -525,9 +545,11 @@ function setupJoystick(elementId, knobId, onMove, onReset) {
 
   joy.addEventListener("pointerup", reset);
   joy.addEventListener("pointercancel", reset);
+
+  return reset;
 }
 
-setupJoystick("joystick-left", "knob-left",
+resetLeftJoystick = setupJoystick("joystick-left", "knob-left",
   (nx, ny) => {
     input.left = nx < -0.25;
     input.right = nx > 0.25;
@@ -537,7 +559,7 @@ setupJoystick("joystick-left", "knob-left",
   () => { input.up = input.down = input.left = input.right = false; }
 );
 
-setupJoystick("joystick-right", "knob-right",
+resetRightJoystick = setupJoystick("joystick-right", "knob-right",
   (nx, ny, dist) => {
     if (dist > 5) input.angle = Math.atan2(ny, nx);
   },
