@@ -472,7 +472,7 @@ function updateKeyboardAim() {
 }
 
 /* ==================================================
-   GERENCIAMENTO DE FOCO E PERDA DE CONTROLE
+   GERENCIAMENTO DE FOCO E PERDA DE CONTROLE (MOBILE & DESKTOP)
    ================================================== */
 let resetLeftJoystick = null;
 let resetRightJoystick = null;
@@ -493,7 +493,12 @@ function resetInputs() {
   if (resetRightJoystick) resetRightJoystick();
 }
 
+// Captura trocas de aba, minimização, navegação de aplicativo e perda de foco no Mobile
 window.addEventListener("blur", resetInputs);
+window.addEventListener("pagehide", resetInputs);
+window.addEventListener("pointercancel", resetInputs);
+window.addEventListener("touchcancel", resetInputs);
+
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     resetInputs();
@@ -507,6 +512,7 @@ function setupJoystick(elementId, knobId, onMove, onReset) {
   const joy = document.getElementById(elementId);
   const knob = document.getElementById(knobId);
   let active = false;
+  let activePointerId = null;
 
   function update(clientX, clientY) {
     const rect = joy.getBoundingClientRect();
@@ -529,13 +535,18 @@ function setupJoystick(elementId, knobId, onMove, onReset) {
 
   function reset() {
     active = false;
+    if (activePointerId !== null) {
+      try { joy.releasePointerCapture(activePointerId); } catch (e) {}
+      activePointerId = null;
+    }
     knob.style.transform = "translate(0px, 0px)";
     onReset();
   }
 
   joy.addEventListener("pointerdown", e => {
     active = true;
-    joy.setPointerCapture(e.pointerId);
+    activePointerId = e.pointerId;
+    try { joy.setPointerCapture(e.pointerId); } catch (err) {}
     update(e.clientX, e.clientY);
   });
 
@@ -545,6 +556,7 @@ function setupJoystick(elementId, knobId, onMove, onReset) {
 
   joy.addEventListener("pointerup", reset);
   joy.addEventListener("pointercancel", reset);
+  joy.addEventListener("lostpointercapture", reset);
 
   return reset;
 }
@@ -567,18 +579,18 @@ resetRightJoystick = setupJoystick("joystick-right", "knob-right",
 );
 
 const fireBtn = document.getElementById("fire-btn");
+function stopFiring(e) {
+  if (e) e.preventDefault();
+  input.shoot = false;
+}
+
 fireBtn.addEventListener("pointerdown", e => {
   e.preventDefault();
   input.shoot = true;
 });
-fireBtn.addEventListener("pointerup", e => {
-  e.preventDefault();
-  input.shoot = false;
-});
-fireBtn.addEventListener("pointercancel", e => {
-  e.preventDefault();
-  input.shoot = false;
-});
+fireBtn.addEventListener("pointerup", stopFiring);
+fireBtn.addEventListener("pointercancel", stopFiring);
+fireBtn.addEventListener("lostpointercapture", stopFiring);
 
 /* ==================================================
    ENVIO DE INPUTS (30 FPS)
