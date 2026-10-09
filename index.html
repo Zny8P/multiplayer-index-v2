@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Multiplayer Battle Royale Canvas</title>
+  <title>Multiplayer Battle Royale Prototype</title>
 
   <style>
     * {
@@ -18,7 +18,7 @@
       height: 100%;
       overflow: hidden;
       background: #111;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
@@ -40,11 +40,140 @@
       color: white;
       padding: 8px 12px;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13px;
       pointer-events: none;
     }
 
-    /* JOYSTICKS (Apenas Celular / Touch) */
+    /* TELAS / OVERLAYS */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.82);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 500;
+    }
+
+    .modal {
+      background: #222;
+      border: 2px solid #444;
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+      color: white;
+      width: 320px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+
+    .modal h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 22px;
+    }
+
+    .modal input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #555;
+      background: #111;
+      color: white;
+      font-size: 16px;
+      text-align: center;
+      margin-bottom: 20px;
+      outline: none;
+    }
+
+    .modal button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 6px;
+      border: none;
+      background: #28a745;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .modal button:hover {
+      background: #218838;
+    }
+
+    #death-screen {
+      display: none;
+    }
+
+    /* HUD DO JOGADOR LOCAL */
+    #hud {
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 0 30px;
+      z-index: 150;
+      pointer-events: none;
+    }
+
+    #hp-container {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 10px;
+      width: 260px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid #555;
+      border-radius: 10px;
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #hp-bar-bg {
+      width: 100%;
+      height: 18px;
+      background: #441111;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #hp-bar-fill {
+      width: 100%;
+      height: 100%;
+      background: #28a745;
+      transition: width 0.15s ease-out;
+    }
+
+    #hp-text {
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 3px;
+    }
+
+    #ammo-container {
+      background: rgba(0, 0, 0, 0.7);
+      border: 2px solid #555;
+      border-radius: 10px;
+      padding: 10px 18px;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    /* CONTROLES MOBILE */
     .joystick-container {
       position: fixed;
       bottom: 30px;
@@ -58,13 +187,8 @@
       touch-action: none;
     }
 
-    #joystick-left {
-      left: 25px;
-    }
-
-    #joystick-right {
-      right: 25px;
-    }
+    #joystick-left { left: 25px; }
+    #joystick-right { right: 25px; }
 
     .joystick-knob {
       position: absolute;
@@ -77,15 +201,28 @@
       border: 2px solid rgba(255, 255, 255, 0.8);
     }
 
-    /* Responsividade: Exibe Joysticks apenas em telas pequenas/mobile */
+    #fire-btn {
+      position: fixed;
+      left: 55px;
+      bottom: 175px;
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: rgba(220, 53, 69, 0.7);
+      border: 3px solid rgba(255, 255, 255, 0.8);
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 210;
+      touch-action: none;
+    }
+
     @media (max-width: 800px), (max-height: 600px) {
-      .joystick-container {
-        display: block;
-      }
-      #status {
-        top: 10px;
-        left: 10px;
-        font-size: 12px;
+      .joystick-container, #fire-btn {
+        display: flex;
       }
     }
   </style>
@@ -96,6 +233,37 @@
   <canvas id="canvas"></canvas>
   <div id="status">Conectando...</div>
 
+  <!-- Tela de Login Inicial -->
+  <div id="login-screen" class="overlay">
+    <div class="modal">
+      <h2>Battle Royale</h2>
+      <input type="text" id="username-input" placeholder="Seu Nome" maxlength="12">
+      <button id="join-btn">Entrar no Jogo</button>
+    </div>
+  </div>
+
+  <!-- Tela de Morte -->
+  <div id="death-screen" class="overlay">
+    <div class="modal">
+      <h2 style="color: #dc3545;">Você Morreu!</h2>
+      <button id="respawn-btn">Renascer</button>
+    </div>
+  </div>
+
+  <!-- HUD do Jogador -->
+  <div id="hud">
+    <div id="hp-container">
+      <div id="hp-bar-bg">
+        <div id="hp-bar-fill"></div>
+      </div>
+      <div id="hp-text">200 / 200 HP</div>
+    </div>
+
+    <div id="ammo-container">
+      <span id="ammo-text">10 / 10</span>
+    </div>
+  </div>
+
   <!-- Controles Mobile -->
   <div id="joystick-left" class="joystick-container">
     <div id="knob-left" class="joystick-knob"></div>
@@ -105,36 +273,51 @@
     <div id="knob-right" class="joystick-knob"></div>
   </div>
 
+  <div id="fire-btn">TIRO</div>
+
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const status = document.getElementById("status");
 
+const loginScreen = document.getElementById("login-screen");
+const usernameInput = document.getElementById("username-input");
+const joinBtn = document.getElementById("join-btn");
+
+const deathScreen = document.getElementById("death-screen");
+const respawnBtn = document.getElementById("respawn-btn");
+
+const hpBarFill = document.getElementById("hp-bar-fill");
+const hpText = document.getElementById("hp-text");
+const ammoText = document.getElementById("ammo-text");
+
 let socket;
 let myId = null;
 let players = {};
+let bullets = [];
 let bushes = [];
 let activeBushes = [];
 let particles = [];
 
 let worldWidth = 2000;
 let worldHeight = 2000;
-
 const PLAYER_SIZE = 30;
 
-// Estado local dos Controles
+// Posição de memória para evitar pulo de câmera ao morrer
+let lastCamX = 0;
+let lastCamY = 0;
+
+// Estado dos Controles Locais
 const input = {
   up: false,
   down: false,
   left: false,
   right: false,
-  angle: 0
+  angle: 0,
+  shoot: false,
+  reload: false
 };
 
-let keyboardAngle = 0;
-let isUsingMouseAim = true;
-
-// Ajuste de tamanho do Canvas
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -145,20 +328,18 @@ resizeCanvas();
 /* ==================================================
    CONEXÃO WEBSOCKET
    ================================================== */
-let reconnectTimeout = null;
-
-function connect() {
+function connect(username) {
   const serverURL = "wss://multiplayer-v2.onrender.com";
   socket = new WebSocket(serverURL);
 
   socket.onopen = () => {
     status.textContent = "🟢 Conectado";
-    if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    socket.send(JSON.stringify({ type: "join", name: username }));
   };
 
   socket.onclose = () => {
     status.textContent = "🔴 Desconectado (tentando reconectar...)";
-    reconnectTimeout = setTimeout(connect, 3000);
+    setTimeout(() => { if (username) connect(username); }, 3000);
   };
 
   socket.onerror = () => {
@@ -171,25 +352,60 @@ function connect() {
 
     if (data.type === "init") {
       myId = data.id;
-      players = {};
-      for (const p of data.players) players[p.id] = p;
       if (data.world) {
         worldWidth = data.world.width;
         worldHeight = data.world.height;
       }
       if (data.bushes) bushes = data.bushes;
+      loginScreen.style.display = "none";
     }
 
-    if (data.type === "players") {
+    if (data.type === "state") {
       players = {};
       for (const p of data.players) players[p.id] = p;
-      if (data.activeBushes) activeBushes = data.activeBushes;
+      bullets = data.bullets || [];
+      activeBushes = data.activeBushes || [];
+
+      if (data.self) {
+        updateHUD(data.self);
+        if (data.self.isDead) {
+          deathScreen.style.display = "flex";
+        } else {
+          deathScreen.style.display = "none";
+        }
+      }
     }
   };
 }
 
+function updateHUD(selfData) {
+  const hpPct = Math.max(0, (selfData.hp / selfData.maxHp) * 100);
+  hpBarFill.style.width = `${hpPct}%`;
+  hpText.textContent = `${selfData.hp} / ${selfData.maxHp} HP`;
+
+  if (selfData.isReloading) {
+    ammoText.textContent = "RECARREGANDO...";
+    ammoText.style.color = "#ffc107";
+  } else {
+    ammoText.textContent = `${selfData.ammo} / ${selfData.maxAmmo}`;
+    ammoText.style.color = "white";
+  }
+}
+
+joinBtn.addEventListener("click", () => {
+  const name = usernameInput.value.trim() || "Jogador";
+  connect(name);
+});
+
+respawnBtn.addEventListener("click", () => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "respawn" }));
+    deathScreen.style.display = "none";
+  }
+});
+
 /* ==================================================
-   CONTROLES (TECLADO E MOUSE)
+   CONTROLES (TECLADO, MOUSE, TOUCH)
    ================================================== */
 const keysPressed = {};
 
@@ -201,6 +417,8 @@ document.addEventListener("keydown", e => {
   if (k === "s") input.down = true;
   if (k === "a") input.left = true;
   if (k === "d") input.right = true;
+  if (k === " ") input.shoot = true;
+  if (k === "r") input.reload = true;
 });
 
 document.addEventListener("keyup", e => {
@@ -211,35 +429,35 @@ document.addEventListener("keyup", e => {
   if (k === "s") input.down = false;
   if (k === "a") input.left = false;
   if (k === "d") input.right = false;
+  if (k === " ") input.shoot = false;
+  if (k === "r") input.reload = false;
 });
 
-// Mira via Mouse
+window.addEventListener("mousedown", e => {
+  if (e.button === 0 && e.target === canvas) {
+    input.shoot = true;
+  }
+});
+
+window.addEventListener("mouseup", e => {
+  if (e.button === 0) {
+    input.shoot = false;
+  }
+});
+
 window.addEventListener("mousemove", e => {
-  isUsingMouseAim = true;
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
   input.angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
 });
 
-// Atualiza mira via teclado (Setas)
 function updateKeyboardAim() {
-  let changed = false;
-  if (keysPressed["arrowleft"]) {
-    keyboardAngle -= 0.08;
-    changed = true;
-  }
-  if (keysPressed["arrowright"]) {
-    keyboardAngle += 0.08;
-    changed = true;
-  }
-  if (changed) {
-    isUsingMouseAim = false;
-    input.angle = keyboardAngle;
-  }
+  if (keysPressed["arrowleft"]) input.angle -= 0.08;
+  if (keysPressed["arrowright"]) input.angle += 0.08;
 }
 
 /* ==================================================
-   JOYSTICKS (MOBILE)
+   JOYSTICKS E BOTÃO FIRE (MOBILE)
    ================================================== */
 function setupJoystick(elementId, knobId, onMove, onReset) {
   const joy = document.getElementById(elementId);
@@ -285,34 +503,39 @@ function setupJoystick(elementId, knobId, onMove, onReset) {
   joy.addEventListener("pointercancel", reset);
 }
 
-// Joystick Esquerdo (Movimento)
-setupJoystick(
-  "joystick-left", "knob-left",
+setupJoystick("joystick-left", "knob-left",
   (nx, ny) => {
     input.left = nx < -0.25;
     input.right = nx > 0.25;
     input.up = ny < -0.25;
     input.down = ny > 0.25;
   },
-  () => {
-    input.up = input.down = input.left = input.right = false;
-  }
+  () => { input.up = input.down = input.left = input.right = false; }
 );
 
-// Joystick Direito (Mira)
-setupJoystick(
-  "joystick-right", "knob-right",
+setupJoystick("joystick-right", "knob-right",
   (nx, ny, dist) => {
-    if (dist > 5) {
-      isUsingMouseAim = false;
-      input.angle = Math.atan2(ny, nx);
-    }
+    if (dist > 5) input.angle = Math.atan2(ny, nx);
   },
   () => {}
 );
 
+const fireBtn = document.getElementById("fire-btn");
+fireBtn.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  input.shoot = true;
+});
+fireBtn.addEventListener("pointerup", e => {
+  e.preventDefault();
+  input.shoot = false;
+});
+fireBtn.addEventListener("pointercancel", e => {
+  e.preventDefault();
+  input.shoot = false;
+});
+
 /* ==================================================
-   ENVIO DE INPUTS PARA O SERVIDOR
+   ENVIO DE INPUTS (30 FPS)
    ================================================== */
 setInterval(() => {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
@@ -323,15 +546,19 @@ setInterval(() => {
     down: input.down,
     left: input.left,
     right: input.right,
-    angle: input.angle
+    angle: input.angle,
+    shoot: input.shoot,
+    reload: input.reload
   }));
+
+  input.reload = false;
 }, 1000 / 30);
 
 /* ==================================================
-   SISTEMA DE PARTÍCULAS NOS ARBUSTOS
+   PARTÍCULAS DOS ARBUSTOS
    ================================================== */
 function spawnBushParticles(bush) {
-  if (Math.random() > 0.4) return; // Frequência de partículas
+  if (Math.random() > 0.4) return;
   const angle = Math.random() * Math.PI * 2;
   const dist = Math.random() * bush.radius * 0.8;
   particles.push({
@@ -356,12 +583,11 @@ function updateParticles() {
 }
 
 /* ==================================================
-   RENDERIZAÇÃO (CANVAS & CÂMERA)
+   RENDERIZAÇÃO (CANVAS)
    ================================================== */
 function render() {
   updateKeyboardAim();
 
-  // Ativa partículas para arbustos com jogadores dentro
   for (const bush of bushes) {
     if (activeBushes.includes(bush.id)) {
       spawnBushParticles(bush);
@@ -373,19 +599,16 @@ function render() {
 
   const myPlayer = players[myId];
 
-  // Cálculo da Câmera (centraliza no jogador local)
-  let camX = 0;
-  let camY = 0;
-
+  // Mantém a última posição da câmera caso o jogador morra
   if (myPlayer) {
-    camX = (myPlayer.x + PLAYER_SIZE / 2) - canvas.width / 2;
-    camY = (myPlayer.y + PLAYER_SIZE / 2) - canvas.height / 2;
+    lastCamX = (myPlayer.x + PLAYER_SIZE / 2) - canvas.width / 2;
+    lastCamY = (myPlayer.y + PLAYER_SIZE / 2) - canvas.height / 2;
   }
 
   ctx.save();
-  ctx.translate(-camX, -camY);
+  ctx.translate(-lastCamX, -lastCamY);
 
-  // 1. Desenha o Chão (Grama com grade sutil)
+  // 1. Chão e Bordas
   ctx.fillStyle = "#348247";
   ctx.fillRect(0, 0, worldWidth, worldHeight);
 
@@ -393,29 +616,21 @@ function render() {
   ctx.lineWidth = 2;
   const gridSize = 80;
   for (let x = 0; x <= worldWidth; x += gridSize) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, worldHeight);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, worldHeight); ctx.stroke();
   }
   for (let y = 0; y <= worldHeight; y += gridSize) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(worldWidth, y);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(worldWidth, y); ctx.stroke();
   }
 
-  // Bordas do Mundo
   ctx.strokeStyle = "#1a4023";
   ctx.lineWidth = 8;
   ctx.strokeRect(0, 0, worldWidth, worldHeight);
 
-  // 2. Desenha Arbustos (Low-Poly) PRIMEIRO
+  // 2. Arbustos
   for (const bush of bushes) {
     ctx.save();
     ctx.translate(bush.x, bush.y);
 
-    // Camada Inferior (Sombra/Base)
     ctx.fillStyle = "#1e4d2b";
     ctx.beginPath();
     bush.points.forEach((pt, i) => {
@@ -425,7 +640,6 @@ function render() {
     ctx.closePath();
     ctx.fill();
 
-    // Camada Superior Low-Poly
     ctx.fillStyle = "#286639";
     ctx.beginPath();
     bush.points.forEach((pt, i) => {
@@ -440,40 +654,65 @@ function render() {
     ctx.restore();
   }
 
-  // 3. Desenha os Jogadores POR CIMA dos arbustos
-  for (const p of Object.values(players)) {
+  // 3. Projéteis
+  for (const b of bullets) {
     ctx.save();
-    ctx.translate(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2);
+    ctx.fillStyle = "#ffeb3b";
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
-    // Se for o próprio jogador no arbusto, aplica transparência sobre o arbusto
+  // 4. Jogadores e Nomes/HP
+  for (const p of Object.values(players)) {
+    const px = p.x + PLAYER_SIZE / 2;
+    const py = p.y + PLAYER_SIZE / 2;
+
+    ctx.save();
+    ctx.translate(px, py);
+
     if (p.id === myId && p.inBush !== null) {
       ctx.globalAlpha = 0.4;
     }
 
-    // Rotação do Personagem / Mira
+    ctx.save();
     ctx.rotate(p.angle);
 
-    // Corpo do Jogador
     ctx.fillStyle = p.color;
     ctx.beginPath();
     ctx.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 6);
     ctx.fill();
 
-    // Borda/Destaque para o jogador local
     if (p.id === myId) {
       ctx.strokeStyle = "white";
       ctx.lineWidth = 3;
       ctx.stroke();
     }
 
-    // Indicador de Direção (Mira)
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(8, -3, 10, 6);
+    ctx.restore();
+
+    ctx.font = "bold 12px Arial";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.fillText(p.name, 0, -PLAYER_SIZE / 2 - 18);
+
+    const barWidth = 36;
+    const barHeight = 5;
+    const hpPct = Math.max(0, p.hp / p.maxHp);
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.fillRect(-barWidth / 2, -PLAYER_SIZE / 2 - 12, barWidth, barHeight);
+
+    ctx.fillStyle = hpPct > 0.5 ? "#28a745" : hpPct > 0.25 ? "#ffc107" : "#dc3545";
+    ctx.fillRect(-barWidth / 2, -PLAYER_SIZE / 2 - 12, barWidth * hpPct, barHeight);
 
     ctx.restore();
   }
 
-  // 4. Desenha Partículas (Efeito visual sobre tudo)
+  // 5. Partículas
   for (const p of particles) {
     ctx.save();
     ctx.globalAlpha = p.life;
@@ -489,9 +728,6 @@ function render() {
   requestAnimationFrame(render);
 }
 
-
-// Inicia
-connect();
 requestAnimationFrame(render);
 </script>
 
