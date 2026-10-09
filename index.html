@@ -329,6 +329,15 @@ resizeCanvas();
    CONEXÃO WEBSOCKET
    ================================================== */
 function connect(username) {
+  // Previne a criação de múltiplas conexões caso o botão seja clicado várias vezes
+  if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
+    return;
+  }
+
+  // Bloqueia o botão e altera o texto para feedback visual do jogador
+  joinBtn.disabled = true;
+  joinBtn.textContent = "Entrando...";
+
   const serverURL = "wss://multiplayer-v2.onrender.com";
   socket = new WebSocket(serverURL);
 
@@ -339,11 +348,21 @@ function connect(username) {
 
   socket.onclose = () => {
     status.textContent = "🔴 Desconectado (tentando reconectar...)";
+    
+    // Libera o botão caso a conexão caia
+    joinBtn.disabled = false;
+    joinBtn.textContent = "Entrar no Jogo";
+
     setTimeout(() => { if (username) connect(username); }, 3000);
   };
 
   socket.onerror = () => {
     status.textContent = "⚠️ Erro de conexão";
+    
+    // Libera o botão em caso de erro na tentativa de conexão
+    joinBtn.disabled = false;
+    joinBtn.textContent = "Entrar no Jogo";
+
     socket.close();
   };
 
@@ -357,7 +376,12 @@ function connect(username) {
         worldHeight = data.world.height;
       }
       if (data.bushes) bushes = data.bushes;
+
       loginScreen.style.display = "none";
+
+      // Restaura o estado original do botão
+      joinBtn.disabled = false;
+      joinBtn.textContent = "Entrar no Jogo";
     }
 
     if (data.type === "state") {
