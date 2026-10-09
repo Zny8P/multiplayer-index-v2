@@ -242,26 +242,27 @@ CONEXÃO
 ==================================================
 */
 
-function connect() {
+let reconnectTimeout = null;
 
-  /*
-    Endereço do servidor online hospedado no Render.
-    Convertemos https:// para wss:// para estabelecer a conexão WebSocket.
-  */
+function connect() {
   const serverURL = "wss://multiplayer-v2.onrender.com";
 
   socket = new WebSocket(serverURL);
 
   socket.onopen = () => {
     status.textContent = "🟢 Conectado";
+    if (reconnectTimeout) clearTimeout(reconnectTimeout);
   };
 
   socket.onclose = () => {
-    status.textContent = "🔴 Desconectado";
+    status.textContent = "🔴 Desconectado (tentando reconectar...)";
+    // Tenta reconectar a cada 3 segundos
+    reconnectTimeout = setTimeout(connect, 3000);
   };
 
-  socket.onerror = () => {
+  socket.onerror = (err) => {
     status.textContent = "⚠️ Erro de conexão";
+    socket.close(); // Força o fechamento para disparar o onclose e tentar reconectar
   };
 
   socket.onmessage = event => {
@@ -293,8 +294,8 @@ function connect() {
       render();
     }
   };
-
 }
+
 
 
 /*
