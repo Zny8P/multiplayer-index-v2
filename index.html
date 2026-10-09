@@ -410,40 +410,7 @@ function render() {
   ctx.lineWidth = 8;
   ctx.strokeRect(0, 0, worldWidth, worldHeight);
 
-  // 2. Desenha os Jogadores
-  for (const p of Object.values(players)) {
-    ctx.save();
-    ctx.translate(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2);
-
-    // Se for o próprio jogador no arbusto, fica semi-transparente
-    if (p.id === myId && p.inBush !== null) {
-      ctx.globalAlpha = 0.4;
-    }
-
-    // Rotação do Personagem / Mira
-    ctx.rotate(p.angle);
-
-    // Corpo do Jogador
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 6);
-    ctx.fill();
-
-    // Borda/Destaque
-    if (p.id === myId) {
-      ctx.strokeStyle = "white";
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-
-    // Indicador de Direção (Mira)
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(8, -3, 10, 6);
-
-    ctx.restore();
-  }
-
-  // 3. Desenha Arbustos (Low-Poly)
+  // 2. Desenha Arbustos (Low-Poly) PRIMEIRO
   for (const bush of bushes) {
     ctx.save();
     ctx.translate(bush.x, bush.y);
@@ -473,7 +440,40 @@ function render() {
     ctx.restore();
   }
 
-  // 4. Desenha Partículas
+  // 3. Desenha os Jogadores POR CIMA dos arbustos
+  for (const p of Object.values(players)) {
+    ctx.save();
+    ctx.translate(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2);
+
+    // Se for o próprio jogador no arbusto, aplica transparência sobre o arbusto
+    if (p.id === myId && p.inBush !== null) {
+      ctx.globalAlpha = 0.4;
+    }
+
+    // Rotação do Personagem / Mira
+    ctx.rotate(p.angle);
+
+    // Corpo do Jogador
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 6);
+    ctx.fill();
+
+    // Borda/Destaque para o jogador local
+    if (p.id === myId) {
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // Indicador de Direção (Mira)
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(8, -3, 10, 6);
+
+    ctx.restore();
+  }
+
+  // 4. Desenha Partículas (Efeito visual sobre tudo)
   for (const p of particles) {
     ctx.save();
     ctx.globalAlpha = p.life;
@@ -488,6 +488,7 @@ function render() {
 
   requestAnimationFrame(render);
 }
+
 
 // Inicia
 connect();
