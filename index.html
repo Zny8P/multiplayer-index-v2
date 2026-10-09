@@ -2,251 +2,153 @@
 <html lang="pt-BR">
 
 <head>
-
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-  >
-
-  <title>Multiplayer WebSocket</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Multiplayer Battle Royale Canvas</title>
 
   <style>
-
     * {
       box-sizing: border-box;
     }
 
-    html,
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       width: 100%;
       height: 100%;
-
       overflow: hidden;
-
       background: #111;
-
       font-family: Arial, sans-serif;
-
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
     }
 
-    body {
-
-      display: flex;
-
-      justify-content: center;
-      align-items: center;
-
-    }
-
-    #game-wrapper {
-
+    #canvas {
+      display: block;
       width: 100vw;
       height: 100vh;
-
-      display: flex;
-
-      justify-content: center;
-      align-items: center;
-
-      position: relative;
-
-    }
-
-    #game {
-
-      width: 800px;
-      height: 600px;
-
-      background:
-        linear-gradient(
-          rgba(255,255,255,0.03) 1px,
-          transparent 1px
-        ),
-        linear-gradient(
-          90deg,
-          rgba(255,255,255,0.03) 1px,
-          transparent 1px
-        ),
-        #222;
-
-      background-size: 40px 40px;
-
-      border: 2px solid #555;
-
-      position: relative;
-
-      overflow: hidden;
-
-      transform-origin: center center;
-
-    }
-
-    .player {
-
-      width: 30px;
-      height: 30px;
-
-      position: absolute;
-
-      border-radius: 6px;
-
-      transform: translateZ(0);
-
-    }
-
-    .player.me {
-
-      border: 3px solid white;
-
-      box-shadow:
-        0 0 8px white;
-
+      background: #2e6f40;
     }
 
     #status {
-
       position: fixed;
-
       top: 15px;
       left: 15px;
-
       z-index: 100;
-
-      background: rgba(0, 0, 0, 0.65);
-
+      background: rgba(0, 0, 0, 0.7);
       color: white;
-
       padding: 8px 12px;
-
       border-radius: 8px;
-
       font-size: 14px;
-
+      pointer-events: none;
     }
 
-    /* =========================
-       JOYSTICK
-       ========================= */
-
-    #joystick {
-
+    /* JOYSTICKS (Apenas Celular / Touch) */
+    .joystick-container {
       position: fixed;
-
-      left: 25px;
-      bottom: 25px;
-
-      width: 140px;
-      height: 140px;
-
+      bottom: 30px;
+      width: 130px;
+      height: 130px;
       border-radius: 50%;
-
-      background: rgba(255,255,255,0.12);
-
-      border: 2px solid rgba(255,255,255,0.25);
-
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.3);
       display: none;
-
       z-index: 200;
-
       touch-action: none;
-
     }
 
-    #joystick-knob {
+    #joystick-left {
+      left: 25px;
+    }
 
+    #joystick-right {
+      right: 25px;
+    }
+
+    .joystick-knob {
       position: absolute;
-
-      width: 60px;
-      height: 60px;
-
-      left: 40px;
-      top: 40px;
-
+      width: 55px;
+      height: 55px;
+      left: 37.5px;
+      top: 37.5px;
       border-radius: 50%;
-
-      background: rgba(255,255,255,0.45);
-
-      border: 2px solid rgba(255,255,255,0.7);
-
+      background: rgba(255, 255, 255, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.8);
     }
 
-    /* Celular */
-
+    /* Responsividade: Exibe Joysticks apenas em telas pequenas/mobile */
     @media (max-width: 800px), (max-height: 600px) {
-
-      #joystick {
+      .joystick-container {
         display: block;
       }
-
       #status {
-
         top: 10px;
         left: 10px;
-
         font-size: 12px;
-
       }
-
     }
-
   </style>
-
 </head>
 
 <body>
 
-  <div id="game-wrapper">
+  <canvas id="canvas"></canvas>
+  <div id="status">Conectando...</div>
 
-    <div id="game"></div>
-
+  <!-- Controles Mobile -->
+  <div id="joystick-left" class="joystick-container">
+    <div id="knob-left" class="joystick-knob"></div>
   </div>
 
-  <div id="status">
-    Conectando...
-  </div>
-
-  <div id="joystick">
-
-    <div id="joystick-knob"></div>
-
+  <div id="joystick-right" class="joystick-container">
+    <div id="knob-right" class="joystick-knob"></div>
   </div>
 
 <script>
-
-const game = document.getElementById("game");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 const status = document.getElementById("status");
 
-const joystick = document.getElementById("joystick");
-const joystickKnob = document.getElementById("joystick-knob");
-
 let socket;
-
 let myId = null;
-
 let players = {};
+let bushes = [];
+let activeBushes = [];
+let particles = [];
 
-let worldWidth = 800;
-let worldHeight = 600;
+let worldWidth = 2000;
+let worldHeight = 2000;
 
+const PLAYER_SIZE = 30;
 
-/*
-==================================================
-CONEXÃO
-==================================================
-*/
+// Estado local dos Controles
+const input = {
+  up: false,
+  down: false,
+  left: false,
+  right: false,
+  angle: 0
+};
 
+let keyboardAngle = 0;
+let isUsingMouseAim = true;
+
+// Ajuste de tamanho do Canvas
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+/* ==================================================
+   CONEXÃO WEBSOCKET
+   ================================================== */
 let reconnectTimeout = null;
 
 function connect() {
   const serverURL = "wss://multiplayer-v2.onrender.com";
-
   socket = new WebSocket(serverURL);
 
   socket.onopen = () => {
@@ -256,13 +158,12 @@ function connect() {
 
   socket.onclose = () => {
     status.textContent = "🔴 Desconectado (tentando reconectar...)";
-    // Tenta reconectar a cada 3 segundos
     reconnectTimeout = setTimeout(connect, 3000);
   };
 
-  socket.onerror = (err) => {
+  socket.onerror = () => {
     status.textContent = "⚠️ Erro de conexão";
-    socket.close(); // Força o fechamento para disparar o onclose e tentar reconectar
+    socket.close();
   };
 
   socket.onmessage = event => {
@@ -271,355 +172,327 @@ function connect() {
     if (data.type === "init") {
       myId = data.id;
       players = {};
-
-      for (const player of data.players) {
-        players[player.id] = player;
-      }
-
+      for (const p of data.players) players[p.id] = p;
       if (data.world) {
         worldWidth = data.world.width;
         worldHeight = data.world.height;
       }
-
-      render();
+      if (data.bushes) bushes = data.bushes;
     }
 
     if (data.type === "players") {
       players = {};
-
-      for (const player of data.players) {
-        players[player.id] = player;
-      }
-
-      render();
+      for (const p of data.players) players[p.id] = p;
+      if (data.activeBushes) activeBushes = data.activeBushes;
     }
   };
 }
 
+/* ==================================================
+   CONTROLES (TECLADO E MOUSE)
+   ================================================== */
+const keysPressed = {};
 
+document.addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  keysPressed[k] = true;
 
-/*
-==================================================
-CONTROLES
-==================================================
-*/
-
-const input = {
-
-  up: false,
-  down: false,
-  left: false,
-  right: false
-
-};
-
-
-/*
-==================================================
-TECLADO
-==================================================
-*/
-
-document.addEventListener("keydown", event => {
-
-  const key = event.key.toLowerCase();
-
-  if (
-    key === "w" ||
-    key === "arrowup"
-  ) {
-    input.up = true;
-  }
-
-  if (
-    key === "s" ||
-    key === "arrowdown"
-  ) {
-    input.down = true;
-  }
-
-  if (
-    key === "a" ||
-    key === "arrowleft"
-  ) {
-    input.left = true;
-  }
-
-  if (
-    key === "d" ||
-    key === "arrowright"
-  ) {
-    input.right = true;
-  }
-
+  if (k === "w") input.up = true;
+  if (k === "s") input.down = true;
+  if (k === "a") input.left = true;
+  if (k === "d") input.right = true;
 });
 
+document.addEventListener("keyup", e => {
+  const k = e.key.toLowerCase();
+  keysPressed[k] = false;
 
-document.addEventListener("keyup", event => {
-
-  const key = event.key.toLowerCase();
-
-  if (
-    key === "w" ||
-    key === "arrowup"
-  ) {
-    input.up = false;
-  }
-
-  if (
-    key === "s" ||
-    key === "arrowdown"
-  ) {
-    input.down = false;
-  }
-
-  if (
-    key === "a" ||
-    key === "arrowleft"
-  ) {
-    input.left = false;
-  }
-
-  if (
-    key === "d" ||
-    key === "arrowright"
-  ) {
-    input.right = false;
-  }
-
+  if (k === "w") input.up = false;
+  if (k === "s") input.down = false;
+  if (k === "a") input.left = false;
+  if (k === "d") input.right = false;
 });
 
+// Mira via Mouse
+window.addEventListener("mousemove", e => {
+  isUsingMouseAim = true;
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  input.angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+});
 
-/*
-==================================================
-ENVIA CONTROLES PARA O SERVIDOR
-==================================================
-*/
+// Atualiza mira via teclado (Setas)
+function updateKeyboardAim() {
+  let changed = false;
+  if (keysPressed["arrowleft"]) {
+    keyboardAngle -= 0.08;
+    changed = true;
+  }
+  if (keysPressed["arrowright"]) {
+    keyboardAngle += 0.08;
+    changed = true;
+  }
+  if (changed) {
+    isUsingMouseAim = false;
+    input.angle = keyboardAngle;
+  }
+}
 
+/* ==================================================
+   JOYSTICKS (MOBILE)
+   ================================================== */
+function setupJoystick(elementId, knobId, onMove, onReset) {
+  const joy = document.getElementById(elementId);
+  const knob = document.getElementById(knobId);
+  let active = false;
+
+  function update(clientX, clientY) {
+    const rect = joy.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    let dx = clientX - centerX;
+    let dy = clientY - centerY;
+    const maxDist = 40;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > maxDist) {
+      dx = (dx / dist) * maxDist;
+      dy = (dy / dist) * maxDist;
+    }
+
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    onMove(dx / maxDist, dy / maxDist, dist);
+  }
+
+  function reset() {
+    active = false;
+    knob.style.transform = "translate(0px, 0px)";
+    onReset();
+  }
+
+  joy.addEventListener("pointerdown", e => {
+    active = true;
+    joy.setPointerCapture(e.pointerId);
+    update(e.clientX, e.clientY);
+  });
+
+  joy.addEventListener("pointermove", e => {
+    if (active) update(e.clientX, e.clientY);
+  });
+
+  joy.addEventListener("pointerup", reset);
+  joy.addEventListener("pointercancel", reset);
+}
+
+// Joystick Esquerdo (Movimento)
+setupJoystick(
+  "joystick-left", "knob-left",
+  (nx, ny) => {
+    input.left = nx < -0.25;
+    input.right = nx > 0.25;
+    input.up = ny < -0.25;
+    input.down = ny > 0.25;
+  },
+  () => {
+    input.up = input.down = input.left = input.right = false;
+  }
+);
+
+// Joystick Direito (Mira)
+setupJoystick(
+  "joystick-right", "knob-right",
+  (nx, ny, dist) => {
+    if (dist > 5) {
+      isUsingMouseAim = false;
+      input.angle = Math.atan2(ny, nx);
+    }
+  },
+  () => {}
+);
+
+/* ==================================================
+   ENVIO DE INPUTS PARA O SERVIDOR
+   ================================================== */
 setInterval(() => {
-
-  if (!socket) return;
-
-  if (socket.readyState !== WebSocket.OPEN) {
-    return;
-  }
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
   socket.send(JSON.stringify({
-
     type: "input",
-
     up: input.up,
     down: input.down,
     left: input.left,
-    right: input.right
-
+    right: input.right,
+    angle: input.angle
   }));
-
 }, 1000 / 30);
 
-
-/*
-==================================================
-JOYSTICK
-==================================================
-*/
-
-let joystickActive = false;
-
-let joystickX = 0;
-let joystickY = 0;
-
-
-function updateJoystick(clientX, clientY) {
-
-  const rect = joystick.getBoundingClientRect();
-
-  const centerX =
-    rect.left + rect.width / 2;
-
-  const centerY =
-    rect.top + rect.height / 2;
-
-  let dx = clientX - centerX;
-  let dy = clientY - centerY;
-
-  const maxDistance = 40;
-
-  const distance =
-    Math.sqrt(dx * dx + dy * dy);
-
-  if (distance > maxDistance) {
-
-    dx =
-      dx / distance * maxDistance;
-
-    dy =
-      dy / distance * maxDistance;
-
-  }
-
-  joystickX = dx / maxDistance;
-  joystickY = dy / maxDistance;
-
-  joystickKnob.style.transform =
-    `translate(${dx}px, ${dy}px)`;
-
-  input.left = joystickX < -0.25;
-  input.right = joystickX > 0.25;
-
-  input.up = joystickY < -0.25;
-  input.down = joystickY > 0.25;
-
+/* ==================================================
+   SISTEMA DE PARTÍCULAS NOS ARBUSTOS
+   ================================================== */
+function spawnBushParticles(bush) {
+  if (Math.random() > 0.4) return; // Frequência de partículas
+  const angle = Math.random() * Math.PI * 2;
+  const dist = Math.random() * bush.radius * 0.8;
+  particles.push({
+    x: bush.x + Math.cos(angle) * dist,
+    y: bush.y + Math.sin(angle) * dist,
+    vx: (Math.random() - 0.5) * 1.5,
+    vy: (Math.random() - 0.5) * 1.5,
+    size: 3 + Math.random() * 4,
+    color: Math.random() > 0.5 ? "#a2d04a" : "#4d9129",
+    life: 1.0
+  });
 }
 
-
-function resetJoystick() {
-
-  joystickActive = false;
-
-  joystickX = 0;
-  joystickY = 0;
-
-  joystickKnob.style.transform =
-    "translate(0px, 0px)";
-
-  input.up = false;
-  input.down = false;
-  input.left = false;
-  input.right = false;
-
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 0.04;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
 }
 
-
-joystick.addEventListener(
-  "pointerdown",
-  event => {
-
-    joystickActive = true;
-
-    joystick.setPointerCapture(event.pointerId);
-
-    updateJoystick(
-      event.clientX,
-      event.clientY
-    );
-
-  }
-);
-
-
-joystick.addEventListener(
-  "pointermove",
-  event => {
-
-    if (!joystickActive) return;
-
-    updateJoystick(
-      event.clientX,
-      event.clientY
-    );
-
-  }
-);
-
-
-joystick.addEventListener(
-  "pointerup",
-  resetJoystick
-);
-
-
-joystick.addEventListener(
-  "pointercancel",
-  resetJoystick
-);
-
-
-/*
-==================================================
-RESPONSIVIDADE
-==================================================
-*/
-
-function resizeGame() {
-
-  const scaleX =
-    window.innerWidth / worldWidth;
-
-  const scaleY =
-    window.innerHeight / worldHeight;
-
-  const scale =
-    Math.min(scaleX, scaleY, 1);
-
-  game.style.transform =
-    `scale(${scale})`;
-
-}
-
-
-window.addEventListener(
-  "resize",
-  resizeGame
-);
-
-resizeGame();
-
-
-/*
-==================================================
-RENDER
-==================================================
-*/
-
+/* ==================================================
+   RENDERIZAÇÃO (CANVAS & CÂMERA)
+   ================================================== */
 function render() {
+  updateKeyboardAim();
 
-  document
-    .querySelectorAll(".player")
-    .forEach(element => {
-      element.remove();
-    });
+  // Ativa partículas para arbustos com jogadores dentro
+  for (const bush of bushes) {
+    if (activeBushes.includes(bush.id)) {
+      spawnBushParticles(bush);
+    }
+  }
+  updateParticles();
 
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  for (const player of Object.values(players)) {
+  const myPlayer = players[myId];
 
-    const element =
-      document.createElement("div");
+  // Cálculo da Câmera (centraliza no jogador local)
+  let camX = 0;
+  let camY = 0;
 
-    element.className = "player";
+  if (myPlayer) {
+    camX = (myPlayer.x + PLAYER_SIZE / 2) - canvas.width / 2;
+    camY = (myPlayer.y + PLAYER_SIZE / 2) - canvas.height / 2;
+  }
 
-    if (player.id === myId) {
+  ctx.save();
+  ctx.translate(-camX, -camY);
 
-      element.classList.add("me");
+  // 1. Desenha o Chão (Grama com grade sutil)
+  ctx.fillStyle = "#348247";
+  ctx.fillRect(0, 0, worldWidth, worldHeight);
 
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.06)";
+  ctx.lineWidth = 2;
+  const gridSize = 80;
+  for (let x = 0; x <= worldWidth; x += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, worldHeight);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= worldHeight; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(worldWidth, y);
+    ctx.stroke();
+  }
+
+  // Bordas do Mundo
+  ctx.strokeStyle = "#1a4023";
+  ctx.lineWidth = 8;
+  ctx.strokeRect(0, 0, worldWidth, worldHeight);
+
+  // 2. Desenha os Jogadores
+  for (const p of Object.values(players)) {
+    ctx.save();
+    ctx.translate(p.x + PLAYER_SIZE / 2, p.y + PLAYER_SIZE / 2);
+
+    // Se for o próprio jogador no arbusto, fica semi-transparente
+    if (p.id === myId && p.inBush !== null) {
+      ctx.globalAlpha = 0.4;
     }
 
-    element.style.left =
-      `${player.x}px`;
+    // Rotação do Personagem / Mira
+    ctx.rotate(p.angle);
 
-    element.style.top =
-      `${player.y}px`;
+    // Corpo do Jogador
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 6);
+    ctx.fill();
 
-    element.style.background =
-      player.color;
+    // Borda/Destaque
+    if (p.id === myId) {
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
 
-    game.appendChild(element);
+    // Indicador de Direção (Mira)
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(8, -3, 10, 6);
 
+    ctx.restore();
   }
 
+  // 3. Desenha Arbustos (Low-Poly)
+  for (const bush of bushes) {
+    ctx.save();
+    ctx.translate(bush.x, bush.y);
+
+    // Camada Inferior (Sombra/Base)
+    ctx.fillStyle = "#1e4d2b";
+    ctx.beginPath();
+    bush.points.forEach((pt, i) => {
+      if (i === 0) ctx.moveTo(pt.x, pt.y);
+      else ctx.lineTo(pt.x, pt.y);
+    });
+    ctx.closePath();
+    ctx.fill();
+
+    // Camada Superior Low-Poly
+    ctx.fillStyle = "#286639";
+    ctx.beginPath();
+    bush.points.forEach((pt, i) => {
+      const px = pt.x * 0.75;
+      const py = pt.y * 0.75;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // 4. Desenha Partículas
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  requestAnimationFrame(render);
 }
 
-
-/*
-==================================================
-INICIA
-==================================================
-*/
-
+// Inicia
 connect();
-
+requestAnimationFrame(render);
 </script>
 
 </body>
-
-</html>
+</html>
