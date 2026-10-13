@@ -621,30 +621,67 @@ setInterval(() => {
 }, 1000 / 30);
 
 /* ==================================================
-   PARTÍCULAS DOS ARBUSTOS (SINCRONIZADAS E COM ROTAÇÃO)
+   PARTÍCULAS DOS ARBUSTOS (HÍBRIDAS E ROBUSTAS)
    ================================================== */
-let lastParticleTime = 0;
-const lastPlayerAngles = {};
+let lastParticleTimes = {};
+const lastPlayerStates = {};
 
 function updateBushParticles() {
   const now = Date.now();
-  
-  // Verifica o estado de cada jogador visível
+  const myPlayer = players[myId];
+
+  // 1. Jogador Local (Autónomo e imediato)
+  if (myPlayer && !selfState.isDead && myPlayer.inBush !== null) {
+    const isMovingLocal = Math.abs(input.moveX) > 0.05 || Math.abs(input.moveY) > 0.05;
+    const lastAngle = lastPlayerStates[myId] !== undefined ? lastPlayerStates[myId].angle : myPlayer.angle;
+    const isRotatingLocal = Math.abs(myPlayer.angle - lastAngle) > 0.05;
+
+    if (isMovingLocal || isRotatingLocal) {
+      if (!lastParticleTimes[myId] || now - lastParticleTimes[myId] >= 150) {
+        lastParticleTimes[myId] = now;
+        const px = myPlayer.x + PLAYER_SIZE / 2;
+        const py = myPlayer.y + PLAYER_SIZE / 2;
+        const angle = Math.random() * Math.PI * 2;
+        const offset = Math.random() * 10;
+
+        particles.push({
+          x: px + Math.cos(angle) * offset,
+          y: py + Math.sin(angle) * offset,
+          vx: (Math.random() - 0.5) * 0.8,
+          vy: (Math.random() - 0.5) * 0.8,
+          size: 2.5 + Math.random() * 2.5,
+          color: Math.random() > 0.5 ? "#a2d04a" : "#4d9129",
+          life: 1.0
+        });
+      }
+    }
+  }
+
+  // 2. Jogadores Remotos (Baseados em activeBushes e variação de posição/ângulo)
   for (const p of Object.values(players)) {
-    if (p.inBush === null) continue;
-    if (!activeBushes.includes(p.inBush)) continue;
+    if (p.id === myId) {
+      if (myPlayer) lastPlayerStates[myId] = { x: myPlayer.x, y: myPlayer.y, angle: myPlayer.angle };
+      continue;
+    }
 
-    const prevAngle = lastPlayerAngles[p.id] !== undefined ? lastPlayerAngles[p.id] : p.angle;
-    const angleDiff = Math.abs(p.angle - prevAngle);
-    lastPlayerAngles[p.id] = p.angle;
+    if (p.inBush === null || !activeBushes.includes(p.inBush)) continue;
 
-    const isRotating = angleDiff > 0.05;
-    const isMovingLocal = (p.id === myId && (Math.abs(input.moveX) > 0.05 || Math.abs(input.moveY) > 0.05));
+    const prevState = lastPlayerStates[p.id];
+    let isRemoteActive = false;
 
-    // Se estiver a mover-se ou a girar dentro do arbusto ativo
-    if (isMovingLocal || isRotating || p.id !== myId) {
-      if (now - lastParticleTime >= 150) {
-        lastParticleTime = now;
+    if (prevState) {
+      const movedDist = Math.hypot(p.x - prevState.x, p.y - prevState.y);
+      const angleDiff = Math.abs(p.angle - prevState.angle);
+      if (movedDist > 0.1 || angleDiff > 0.05) {
+        isRemoteActive = true;
+      }
+    }
+
+    lastPlayerStates[p.id] = { x: p.x, y: p.y, angle: p.angle };
+
+    if (isRemoteActive) {
+      if (!lastParticleTimes[p.id] || now - lastParticleTimes[p.id] >= 150) {
+        lastParticleTimes[p.id] = now;
         const px = p.x + PLAYER_SIZE / 2;
         const py = p.y + PLAYER_SIZE / 2;
         const angle = Math.random() * Math.PI * 2;
