@@ -110,7 +110,7 @@
       display: none;
     }
 
-    /* HUD DO JOGADOR LOCAL (CENTRALIZADO NA BASE) */
+    /* HUD DO JOGADOR LOCAL */
     #hud {
       position: fixed;
       bottom: 20px;
@@ -247,7 +247,7 @@
     </div>
   </div>
 
-  <!-- HUD do Jogador (Agrupado e Centralizado na Base) -->
+  <!-- HUD do Jogador -->
   <div id="hud">
     <div id="ammo-container">
       <span id="ammo-text">10 / 10</span>
@@ -302,12 +302,10 @@ const PLAYER_SIZE = 30;
 let lastCamX = 0;
 let lastCamY = 0;
 
-// Estado dos Controlos Locais
+// Estado dos Controlos Locais (Movimento Livre com Componentes Vetoriais)
 const input = {
-  up: false,
-  down: false,
-  left: false,
-  right: false,
+  moveX: 0,
+  moveY: 0,
   angle: 0,
   shoot: false,
   reload: false
@@ -320,7 +318,6 @@ function resizeCanvas() {
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
-// Função auxiliar segura para rectângulos arredondados (Compatibilidade Mobile)
 function drawRoundedRect(context, x, y, width, height, radius) {
   if (typeof context.roundRect === "function") {
     context.beginPath();
@@ -437,30 +434,36 @@ respawnBtn.addEventListener("click", () => {
    ================================================== */
 const keysPressed = {};
 
+function updateKeyboardMovement() {
+  let x = 0;
+  let y = 0;
+  if (keysPressed["a"] || keysPressed["arrowleft"]) x -= 1;
+  if (keysPressed["d"] || keysPressed["arrowright"]) x += 1;
+  if (keysPressed["w"] || keysPressed["arrowup"]) y -= 1;
+  if (keysPressed["s"] || keysPressed["arrowdown"]) y += 1;
+
+  input.moveX = x;
+  input.moveY = y;
+}
+
 document.addEventListener("keydown", e => {
   if (loginScreen.style.display !== "none") return;
   if (document.activeElement === usernameInput) return;
   const k = e.key.toLowerCase();
   keysPressed[k] = true;
 
-  if (k === "w") input.up = true;
-  if (k === "s") input.down = true;
-  if (k === "a") input.left = true;
-  if (k === "d") input.right = true;
   if (k === " ") input.shoot = true;
   if (k === "r") input.reload = true;
+  updateKeyboardMovement();
 });
 
 document.addEventListener("keyup", e => {
   const k = e.key.toLowerCase();
   keysPressed[k] = false;
 
-  if (k === "w") input.up = false;
-  if (k === "s") input.down = false;
-  if (k === "a") input.left = false;
-  if (k === "d") input.right = false;
   if (k === " ") input.shoot = false;
   if (k === "r") input.reload = false;
+  updateKeyboardMovement();
 });
 
 window.addEventListener("mousedown", e => {
@@ -485,8 +488,8 @@ window.addEventListener("mousemove", e => {
 });
 
 function updateKeyboardAim() {
-  if (keysPressed["arrowleft"]) input.angle -= 0.08;
-  if (keysPressed["arrowright"]) input.angle += 0.08;
+  if (keysPressed["q"]) input.angle -= 0.08;
+  if (keysPressed["e"]) input.angle += 0.08;
 }
 
 /* ==================================================
@@ -496,10 +499,8 @@ let resetLeftJoystick = null;
 let resetRightJoystick = null;
 
 function resetInputs() {
-  input.up = false;
-  input.down = false;
-  input.left = false;
-  input.right = false;
+  input.moveX = 0;
+  input.moveY = 0;
   input.shoot = false;
   input.reload = false;
 
@@ -582,12 +583,10 @@ function setupJoystick(elementId, knobId, onMove, onReset) {
 
 resetLeftJoystick = setupJoystick("joystick-left", "knob-left",
   (nx, ny) => {
-    input.left = nx < -0.25;
-    input.right = nx > 0.25;
-    input.up = ny < -0.25;
-    input.down = ny > 0.25;
+    input.moveX = nx;
+    input.moveY = ny;
   },
-  () => { input.up = input.down = input.left = input.right = false; }
+  () => { input.moveX = 0; input.moveY = 0; }
 );
 
 resetRightJoystick = setupJoystick("joystick-right", "knob-right",
@@ -628,10 +627,8 @@ setInterval(() => {
 
   socket.send(JSON.stringify({
     type: "input",
-    up: input.up,
-    down: input.down,
-    left: input.left,
-    right: input.right,
+    moveX: input.moveX,
+    moveY: input.moveY,
     angle: input.angle,
     shoot: input.shoot,
     reload: input.reload
@@ -813,3 +810,4 @@ requestAnimationFrame(render);
 
 </body>
 </html>
+  
