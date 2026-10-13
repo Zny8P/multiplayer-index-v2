@@ -231,22 +231,22 @@
 <body>
 
   <canvas id="canvas"></canvas>
-  <div id="status">Conectando...</div>
+  <div id="status">Conectando...[span_2](start_span)[span_2](end_span)</div>
 
   <!-- Tela de Login Inicial -->
   <div id="login-screen" class="overlay">
     <div class="modal">
-      <h2>Battle Royale</h2>
+      <h2>Battle Royale[span_3](start_span)[span_3](end_span)</h2>
       <input type="text" id="username-input" placeholder="Seu Nome" maxlength="12">
-      <button id="join-btn">Entrar no Jogo</button>
+      <button id="join-btn">Entrar no Jogo[span_4](start_span)[span_4](end_span)</button>
     </div>
   </div>
 
   <!-- Tela de Morte -->
   <div id="death-screen" class="overlay">
     <div class="modal">
-      <h2 style="color: #dc3545;">Você Morreu!</h2>
-      <button id="respawn-btn">Renascer</button>
+      <h2 style="color: #dc3545;">Você Morreu[span_5](start_span)[span_5](end_span)!</h2>
+      <button id="respawn-btn">Renascer[span_6](start_span)[span_6](end_span)</button>
     </div>
   </div>
 
@@ -256,11 +256,11 @@
       <div id="hp-bar-bg">
         <div id="hp-bar-fill"></div>
       </div>
-      <div id="hp-text">200 / 200 HP</div>
+      <div id="hp-text">200 / 200 HP[span_7](start_span)[span_7](end_span)</div>
     </div>
 
     <div id="ammo-container">
-      <span id="ammo-text">10 / 10</span>
+      <span id="ammo-text">10 / 10[span_8](start_span)[span_8](end_span)</span>
     </div>
   </div>
 
@@ -273,7 +273,7 @@
     <div id="knob-right" class="joystick-knob"></div>
   </div>
 
-  <div id="fire-btn">TIRO</div>
+  <div id="fire-btn">TIRO[span_9](start_span)[span_9](end_span)</div>
 
 <script>
 const canvas = document.getElementById("canvas");
@@ -303,11 +303,11 @@ let worldWidth = 2000;
 let worldHeight = 2000;
 const PLAYER_SIZE = 30;
 
-// Posição de memória para evitar pulo de câmera ao morrer
+// Posição de memória para evitar pulo de câmera ao morrer[span_10](start_span)[span_10](end_span)
 let lastCamX = 0;
 let lastCamY = 0;
 
-// Estado dos Controles Locais
+// Estado dos Controles Locais[span_11](start_span)[span_11](end_span)
 const input = {
   up: false,
   down: false,
@@ -340,22 +340,22 @@ function connect(username) {
   socket = new WebSocket(serverURL);
 
   socket.onopen = () => {
-    status.textContent = "🟢 Conectado";
+    status.textContent = "🟢 Conectado[span_12](start_span)[span_12](end_span)";
     socket.send(JSON.stringify({ type: "join", name: username }));
   };
 
   socket.onclose = () => {
-    status.textContent = "🔴 Desconectado (tentando reconectar...)";
+    status.textContent = "🔴 Desconectado (tentando reconectar...)[span_13](start_span)[span_13](end_span)";
     joinBtn.disabled = false;
-    joinBtn.textContent = "Entrar no Jogo";
+    joinBtn.textContent = "Entrar no Jogo[span_14](start_span)[span_14](end_span)";
 
     setTimeout(() => { if (username) connect(username); }, 3000);
   };
 
   socket.onerror = () => {
-    status.textContent = "⚠️ Erro de conexão";
+    status.textContent = "⚠️ Erro de conexão[span_15](start_span)[span_15](end_span)";
     joinBtn.disabled = false;
-    joinBtn.textContent = "Entrar no Jogo";
+    joinBtn.textContent = "Entrar no Jogo[span_16](start_span)[span_16](end_span)";
     socket.close();
   };
 
@@ -370,9 +370,10 @@ function connect(username) {
       }
       if (data.bushes) bushes = data.bushes;
       loginScreen.style.display = "none";
+      resetInputs();
 
       joinBtn.disabled = false;
-      joinBtn.textContent = "Entrar no Jogo";
+      joinBtn.textContent = "Entrar no Jogo[span_17](start_span)[span_17](end_span)";
     }
 
     if (data.type === "state") {
@@ -396,13 +397,13 @@ function connect(username) {
 function updateHUD(selfData) {
   const hpPct = Math.max(0, (selfData.hp / selfData.maxHp) * 100);
   hpBarFill.style.width = `${hpPct}%`;
-  hpText.textContent = `${selfData.hp} / ${selfData.maxHp} HP`;
+  hpText.textContent = `${selfData.hp} / ${selfData.maxHp} HP[span_18](start_span)[span_18](end_span)`;
 
   if (selfData.isReloading) {
-    ammoText.textContent = "RECARREGANDO...";
+    ammoText.textContent = "RECARREGANDO...[span_19](start_span)[span_19](end_span)";
     ammoText.style.color = "#ffc107";
   } else {
-    ammoText.textContent = `${selfData.ammo} / ${selfData.maxAmmo}`;
+    ammoText.textContent = `${selfData.ammo} / ${selfData.maxAmmo}[span_20](start_span)[span_20](end_span)`;
     ammoText.style.color = "white";
   }
 }
@@ -425,6 +426,8 @@ respawnBtn.addEventListener("click", () => {
 const keysPressed = {};
 
 document.addEventListener("keydown", e => {
+  if (loginScreen.style.display !== "none") return;
+  if (document.activeElement === usernameInput) return;
   const k = e.key.toLowerCase();
   keysPressed[k] = true;
 
@@ -436,6 +439,7 @@ document.addEventListener("keydown", e => {
   if (k === "r") input.reload = true;
 });
 
+// keyup liberado para funcionar mesmo com a tela de login visível
 document.addEventListener("keyup", e => {
   const k = e.key.toLowerCase();
   keysPressed[k] = false;
@@ -449,6 +453,8 @@ document.addEventListener("keyup", e => {
 });
 
 window.addEventListener("mousedown", e => {
+  if (loginScreen.style.display !== "none") return;
+  if (document.activeElement === usernameInput) return;
   if (e.button === 0 && e.target === canvas) {
     input.shoot = true;
   }
@@ -461,6 +467,7 @@ window.addEventListener("mouseup", e => {
 });
 
 window.addEventListener("mousemove", e => {
+  if (loginScreen.style.display !== "none") return;
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
   input.angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
@@ -493,7 +500,6 @@ function resetInputs() {
   if (resetRightJoystick) resetRightJoystick();
 }
 
-// Captura trocas de aba, minimização, navegação de aplicativo e perda de foco no Mobile
 window.addEventListener("blur", resetInputs);
 window.addEventListener("pagehide", resetInputs);
 window.addEventListener("pointercancel", resetInputs);
@@ -544,6 +550,7 @@ function setupJoystick(elementId, knobId, onMove, onReset) {
   }
 
   joy.addEventListener("pointerdown", e => {
+    if (loginScreen.style.display !== "none") return;
     active = true;
     activePointerId = e.pointerId;
     try { joy.setPointerCapture(e.pointerId); } catch (err) {}
@@ -551,6 +558,7 @@ function setupJoystick(elementId, knobId, onMove, onReset) {
   });
 
   joy.addEventListener("pointermove", e => {
+    if (loginScreen.style.display !== "none") return;
     if (active) update(e.clientX, e.clientY);
   });
 
@@ -585,6 +593,7 @@ function stopFiring(e) {
 }
 
 fireBtn.addEventListener("pointerdown", e => {
+  if (loginScreen.style.display !== "none") return;
   e.preventDefault();
   input.shoot = true;
 });
@@ -657,7 +666,6 @@ function render() {
 
   const myPlayer = players[myId];
 
-  // Mantém a última posição da câmera caso o jogador morra
   if (myPlayer) {
     lastCamX = (myPlayer.x + PLAYER_SIZE / 2) - canvas.width / 2;
     lastCamY = (myPlayer.y + PLAYER_SIZE / 2) - canvas.height / 2;
@@ -666,7 +674,6 @@ function render() {
   ctx.save();
   ctx.translate(-lastCamX, -lastCamY);
 
-  // 1. Chão e Bordas
   ctx.fillStyle = "#348247";
   ctx.fillRect(0, 0, worldWidth, worldHeight);
 
@@ -684,7 +691,6 @@ function render() {
   ctx.lineWidth = 8;
   ctx.strokeRect(0, 0, worldWidth, worldHeight);
 
-  // 2. Arbustos
   for (const bush of bushes) {
     ctx.save();
     ctx.translate(bush.x, bush.y);
@@ -712,7 +718,6 @@ function render() {
     ctx.restore();
   }
 
-  // 3. Projéteis
   for (const b of bullets) {
     ctx.save();
     ctx.fillStyle = "#ffeb3b";
@@ -722,7 +727,6 @@ function render() {
     ctx.restore();
   }
 
-  // 4. Jogadores e Nomes/HP
   for (const p of Object.values(players)) {
     const px = p.x + PLAYER_SIZE / 2;
     const py = p.y + PLAYER_SIZE / 2;
@@ -770,7 +774,6 @@ function render() {
     ctx.restore();
   }
 
-  // 5. Partículas
   for (const p of particles) {
     ctx.save();
     ctx.globalAlpha = p.life;
