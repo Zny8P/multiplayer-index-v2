@@ -293,7 +293,6 @@ let myId = null;
 let players = {};
 let bullets = [];
 let bushes = [];
-let activeBushes = [];
 let particles = [];
 
 let worldWidth = 2000;
@@ -390,7 +389,6 @@ function connect(username) {
         players = {};
         for (const p of data.players) players[p.id] = p;
         bullets = data.bullets || [];
-        activeBushes = data.activeBushes || [];
 
         if (data.self) {
           updateHUD(data.self);
@@ -644,7 +642,7 @@ setInterval(() => {
 }, 1000 / 30);
 
 /* ==================================================
-   PARTÍCULAS DOS ARBUSTOS
+   PARTÍCULAS DOS ARBUSTOS (INDEPENDENTES)
    ================================================== */
 function spawnBushParticles(bush) {
   if (Math.random() > 0.4) return;
@@ -681,10 +679,9 @@ function render() {
   input.moveX += (targetMoveX - input.moveX) * 0.6;
   input.moveY += (targetMoveY - input.moveY) * 0.6;
 
+  // Gerar partículas independentes em todos os arbustos visualmente
   for (const bush of bushes) {
-    if (activeBushes.includes(bush.id)) {
-      spawnBushParticles(bush);
-    }
+    spawnBushParticles(bush);
   }
   updateParticles();
 
