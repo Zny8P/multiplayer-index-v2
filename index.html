@@ -44,7 +44,6 @@
       pointer-events: none;
     }
 
-    /* ECRÃS / OVERLAYS */
     .overlay {
       position: fixed;
       top: 0;
@@ -110,7 +109,6 @@
       display: none;
     }
 
-    /* HUD DO JOGADOR LOCAL */
     #hud {
       position: fixed;
       bottom: 20px;
@@ -170,7 +168,6 @@
       margin-top: 3px;
     }
 
-    /* CONTROLOS MÓVEIS */
     .joystick-container {
       position: fixed;
       bottom: 30px;
@@ -624,51 +621,47 @@ setInterval(() => {
 }, 1000 / 30);
 
 /* ==================================================
-   PARTÍCULAS DOS ARBUSTOS (BASEADAS EM ACTIVEBUSHES E ROTAÇÃO)
+   PARTÍCULAS DOS ARBUSTOS (SINCRONIZADAS E COM ROTAÇÃO)
    ================================================== */
 let lastParticleTime = 0;
-// Rastreia a rotação anterior de cada jogador para detetar giro
 const lastPlayerAngles = {};
 
 function updateBushParticles() {
   const now = Date.now();
-  if (now - lastParticleTime < 150) {
-    return;
-  }
-
-  // Verifica se algum jogador visível está num arbusto ativo e a mover-se ou a girar
+  
+  // Verifica o estado de cada jogador visível
   for (const p of Object.values(players)) {
     if (p.inBush === null) continue;
     if (!activeBushes.includes(p.inBush)) continue;
 
-    // Calcula velocidade aparente ou mudança de ângulo (giro)
     const prevAngle = lastPlayerAngles[p.id] !== undefined ? lastPlayerAngles[p.id] : p.angle;
     const angleDiff = Math.abs(p.angle - prevAngle);
     lastPlayerAngles[p.id] = p.angle;
 
-    // Se houver rotação (giro) ou se o próprio jogador local estiver a mover-se
     const isRotating = angleDiff > 0.05;
     const isMovingLocal = (p.id === myId && (Math.abs(input.moveX) > 0.05 || Math.abs(input.moveY) > 0.05));
 
+    // Se estiver a mover-se ou a girar dentro do arbusto ativo
     if (isMovingLocal || isRotating || p.id !== myId) {
-      // Cria partículas perto do jogador dentro do arbusto
-      const px = p.x + PLAYER_SIZE / 2;
-      const py = p.y + PLAYER_SIZE / 2;
-      const angle = Math.random() * Math.PI * 2;
-      const offset = Math.random() * 10;
+      if (now - lastParticleTime >= 150) {
+        lastParticleTime = now;
+        const px = p.x + PLAYER_SIZE / 2;
+        const py = p.y + PLAYER_SIZE / 2;
+        const angle = Math.random() * Math.PI * 2;
+        const offset = Math.random() * 10;
 
-      particles.push({
-        x: px + Math.cos(angle) * offset,
-        y: py + Math.sin(angle) * offset,
-        vx: (Math.random() - 0.5) * 0.8,
-        vy: (Math.random() - 0.5) * 0.8,
-        size: 2.5 + Math.random() * 2.5,
-        color: Math.random() > 0.5 ? "#a2d04a" : "#4d9129",
-        life: 1.0
-      });
+        particles.push({
+          x: px + Math.cos(angle) * offset,
+          y: py + Math.sin(angle) * offset,
+          vx: (Math.random() - 0.5) * 0.8,
+          vy: (Math.random() - 0.5) * 0.8,
+          size: 2.5 + Math.random() * 2.5,
+          color: Math.random() > 0.5 ? "#a2d04a" : "#4d9129",
+          life: 1.0
+        });
+      }
     }
   }
-  lastParticleTime = now;
 }
 
 function updateParticles() {
