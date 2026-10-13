@@ -110,7 +110,7 @@
       display: none;
     }
 
-    /* HUD DO JOGADOR LOCAL (CENTRALIZADO NA PARTE INFERIOR) */
+    /* HUD DO JOGADOR LOCAL (CENTRALIZADO NA BASE) */
     #hud {
       position: fixed;
       bottom: 20px;
@@ -320,6 +320,17 @@ function resizeCanvas() {
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
+// Função auxiliar segura para rectângulos arredondados (Compatibilidade Mobile)
+function drawRoundedRect(context, x, y, width, height, radius) {
+  if (typeof context.roundRect === "function") {
+    context.beginPath();
+    context.roundRect(x, y, width, height, radius);
+    context.fill();
+  } else {
+    context.fillRect(x, y, width, height);
+  }
+}
+
 /* ==================================================
    LIGAÇÃO WEBSOCKET
    ================================================== */
@@ -357,36 +368,40 @@ function connect(username) {
   };
 
   socket.onmessage = event => {
-    const data = JSON.parse(event.data);
+    try {
+      const data = JSON.parse(event.data);
 
-    if (data.type === "init") {
-      myId = data.id;
-      if (data.world) {
-        worldWidth = data.world.width;
-        worldHeight = data.world.height;
+      if (data.type === "init") {
+        myId = data.id;
+        if (data.world) {
+          worldWidth = data.world.width;
+          worldHeight = data.world.height;
+        }
+        if (data.bushes) bushes = data.bushes;
+        loginScreen.style.display = "none";
+        resetInputs();
+
+        joinBtn.disabled = false;
+        joinBtn.textContent = "Entrar no Jogo";
       }
-      if (data.bushes) bushes = data.bushes;
-      loginScreen.style.display = "none";
-      resetInputs();
 
-      joinBtn.disabled = false;
-      joinBtn.textContent = "Entrar no Jogo";
-    }
+      if (data.type === "state") {
+        players = {};
+        for (const p of data.players) players[p.id] = p;
+        bullets = data.bullets || [];
+        activeBushes = data.activeBushes || [];
 
-    if (data.type === "state") {
-      players = {};
-      for (const p of data.players) players[p.id] = p;
-      bullets = data.bullets || [];
-      activeBushes = data.activeBushes || [];
-
-      if (data.self) {
-        updateHUD(data.self);
-        if (data.self.isDead) {
-          deathScreen.style.display = "flex";
-        } else {
-          deathScreen.style.display = "none";
+        if (data.self) {
+          updateHUD(data.self);
+          if (data.self.isDead) {
+            deathScreen.style.display = "flex";
+          } else {
+            deathScreen.style.display = "none";
+          }
         }
       }
+    } catch (err) {
+      console.error("Erro ao processar mensagem do servidor:", err);
     }
   };
 }
@@ -747,7 +762,7 @@ function render() {
 
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 6);
+    ctx.rect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
     ctx.fill();
 
     if (p.id === myId) {
@@ -788,7 +803,7 @@ function render() {
     ctx.restore();
   }
 
-    ctx.restore();
+  ctx.restore();
 
   requestAnimationFrame(render);
 }
