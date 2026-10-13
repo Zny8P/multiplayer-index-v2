@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 
 <head>
   <meta charset="UTF-8">
@@ -15,7 +15,7 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100%;
+      height: 100dvh;
       overflow: hidden;
       background: #111;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -27,7 +27,7 @@
     #canvas {
       display: block;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       background: #2e6f40;
     }
 
@@ -50,7 +50,7 @@
       top: 0;
       left: 0;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       background: rgba(0, 0, 0, 0.82);
       display: flex;
       flex-direction: column;
@@ -173,7 +173,7 @@
       text-align: center;
     }
 
-    /* CONTROLES MOBILE */
+    /* CONTROLOS MÓVEIS */
     .joystick-container {
       position: fixed;
       bottom: 30px;
@@ -231,18 +231,18 @@
 <body>
 
   <canvas id="canvas"></canvas>
-  <div id="status">Conectando...</div>
+  <div id="status">A ligar...</div>
 
-  <!-- Tela de Login Inicial -->
+  <!-- Ecrã de Login Inicial -->
   <div id="login-screen" class="overlay">
     <div class="modal">
       <h2>Battle Royale</h2>
-      <input type="text" id="username-input" placeholder="Seu Nome" maxlength="12">
+      <input type="text" id="username-input" placeholder="O seu Nome" maxlength="12">
       <button id="join-btn">Entrar no Jogo</button>
     </div>
   </div>
 
-  <!-- Tela de Morte -->
+  <!-- Ecrã de Morte -->
   <div id="death-screen" class="overlay">
     <div class="modal">
       <h2 style="color: #dc3545;">Você Morreu!</h2>
@@ -264,7 +264,7 @@
     </div>
   </div>
 
-  <!-- Controles Mobile -->
+  <!-- Controlos Móveis -->
   <div id="joystick-left" class="joystick-container">
     <div id="knob-left" class="joystick-knob"></div>
   </div>
@@ -303,11 +303,10 @@ let worldWidth = 2000;
 let worldHeight = 2000;
 const PLAYER_SIZE = 30;
 
-// Posição de memória para evitar pulo de câmera ao morrer
 let lastCamX = 0;
 let lastCamY = 0;
 
-// Estado dos Controles Locais
+// Estado dos Controlos Locais
 const input = {
   up: false,
   down: false,
@@ -326,7 +325,7 @@ window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
 /* ==================================================
-   CONEXÃO WEBSOCKET
+   LIGAÇÃO WEBSOCKET
    ================================================== */
 function connect(username) {
   if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
@@ -334,28 +333,30 @@ function connect(username) {
   }
 
   joinBtn.disabled = true;
-  joinBtn.textContent = "Entrando...";
+  joinBtn.textContent = "A entrar...";
 
   const serverURL = "wss://multiplayer-v2.onrender.com";
   socket = new WebSocket(serverURL);
 
   socket.onopen = () => {
-    status.textContent = "🟢 Conectado";
+    status.textContent = "🟢 Ligado";
     socket.send(JSON.stringify({ type: "join", name: username }));
   };
 
   socket.onclose = () => {
-    status.textContent = "🔴 Desconectado (tentando reconectar...)";
+    status.textContent = "🔴 Desligado (a tentar reconectar...)";
     joinBtn.disabled = false;
     joinBtn.textContent = "Entrar no Jogo";
+    resetInputs();
 
     setTimeout(() => { if (username) connect(username); }, 3000);
   };
 
   socket.onerror = () => {
-    status.textContent = "⚠️ Erro de conexão";
+    status.textContent = "⚠️ Erro de ligação";
     joinBtn.disabled = false;
     joinBtn.textContent = "Entrar no Jogo";
+    resetInputs();
     socket.close();
   };
 
@@ -400,7 +401,7 @@ function updateHUD(selfData) {
   hpText.textContent = `${selfData.hp} / ${selfData.maxHp} HP`;
 
   if (selfData.isReloading) {
-    ammoText.textContent = "RECARREGANDO...";
+    ammoText.textContent = "A RECARREGAR...";
     ammoText.style.color = "#ffc107";
   } else {
     ammoText.textContent = `${selfData.ammo} / ${selfData.maxAmmo}`;
@@ -421,7 +422,7 @@ respawnBtn.addEventListener("click", () => {
 });
 
 /* ==================================================
-   CONTROLES (TECLADO, MOUSE, TOUCH)
+   CONTROLOS (TECLADO, RATO, TOUCH)
    ================================================== */
 const keysPressed = {};
 
@@ -478,7 +479,7 @@ function updateKeyboardAim() {
 }
 
 /* ==================================================
-   GERENCIAMENTO DE FOCO E PERDA DE CONTROLE (MOBILE & DESKTOP)
+   GESTOR DE FOCO E PERDA DE CONTROLO
    ================================================== */
 let resetLeftJoystick = null;
 let resetRightJoystick = null;
@@ -511,7 +512,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 /* ==================================================
-   JOYSTICKS E BOTÃO FIRE (MOBILE)
+   JOYSTICKS E BOTÃO FIRE (MÓVEL)
    ================================================== */
 function setupJoystick(elementId, knobId, onMove, onReset) {
   const joy = document.getElementById(elementId);
@@ -586,8 +587,14 @@ resetRightJoystick = setupJoystick("joystick-right", "knob-right",
 );
 
 const fireBtn = document.getElementById("fire-btn");
+let firePointerId = null;
+
 function stopFiring(e) {
   if (e) e.preventDefault();
+  if (firePointerId !== null) {
+    try { fireBtn.releasePointerCapture(firePointerId); } catch (err) {}
+    firePointerId = null;
+  }
   input.shoot = false;
 }
 
@@ -595,6 +602,8 @@ fireBtn.addEventListener("pointerdown", e => {
   if (loginScreen.style.display !== "none") return;
   e.preventDefault();
   input.shoot = true;
+  firePointerId = e.pointerId;
+  try { fireBtn.setPointerCapture(e.pointerId); } catch (err) {}
 });
 fireBtn.addEventListener("pointerup", stopFiring);
 fireBtn.addEventListener("pointercancel", stopFiring);
