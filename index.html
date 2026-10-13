@@ -294,6 +294,7 @@ let players = {};
 let bullets = [];
 let bushes = [];
 let particles = [];
+let selfState = { hp: 200, maxHp: 200, ammo: 10, maxAmmo: 10, isReloading: false, isDead: false };
 
 let worldWidth = 2000;
 let worldHeight = 2000;
@@ -391,6 +392,7 @@ function connect(username) {
         bullets = data.bullets || [];
 
         if (data.self) {
+          selfState = data.self;
           updateHUD(data.self);
           if (data.self.isDead) {
             deathScreen.style.display = "flex";
@@ -642,18 +644,52 @@ setInterval(() => {
 }, 1000 / 30);
 
 /* ==================================================
-   PARTÍCULAS DOS ARBUSTOS (INDEPENDENTES)
+   PARTÍCULAS DOS ARBUSTOS (CORRIGIDAS COM SELFSTATE)
    ================================================== */
-function spawnBushParticles(bush) {
-  if (Math.random() > 0.4) return;
+let lastParticleTime = 0;
+let lastPlayerX = 0;
+let lastPlayerY = 0;
+let hasLastPosition = false;
+
+function updateBushParticles() {
+  const myPlayer = players[myId];
+  
+  if (!myPlayer || selfState.isDead || myPlayer.inBush === null) {
+    hasLastPosition = false;
+    lastParticleTime = 0;
+    return;
+  }
+
+  if (!hasLastPosition) {
+    lastPlayerX = myPlayer.x;
+    lastPlayerY = myPlayer.y;
+    hasLastPosition = true;
+    return;
+  }
+
+  const movedDist = Math.hypot(myPlayer.x - lastPlayerX, myPlayer.y - lastPlayerY);
+  const isActuallyMoving = movedDist > 0.1;
+
+  lastPlayerX = myPlayer.x;
+  lastPlayerY = myPlayer.y;
+
+  if (!isActuallyMoving) return;
+
+  const now = Date.now();
+  if (now - lastParticleTime < 150) return;
+  lastParticleTime = now;
+
+  const px = myPlayer.x + PLAYER_SIZE / 2;
+  const py = myPlayer.y + PLAYER_SIZE / 2;
   const angle = Math.random() * Math.PI * 2;
-  const dist = Math.random() * bush.radius * 0.8;
+  const offset = Math.random() * 10;
+
   particles.push({
-    x: bush.x + Math.cos(angle) * dist,
-    y: bush.y + Math.sin(angle) * dist,
-    vx: (Math.random() - 0.5) * 1.5,
-    vy: (Math.random() - 0.5) * 1.5,
-    size: 3 + Math.random() * 4,
+    x: px + Math.cos(angle) * offset,
+    y: py + Math.sin(angle) * offset,
+    vx: (Math.random() - 0.5) * 0.8,
+    vy: (Math.random() - 0.5) * 0.8,
+    size: 2.5 + Math.random() * 2.5,
     color: Math.random() > 0.5 ? "#a2d04a" : "#4d9129",
     life: 1.0
   });
@@ -675,14 +711,10 @@ function updateParticles() {
 function render() {
   updateKeyboardAim();
 
-  // Transição suave (interpolação) para os inputs de movimento
   input.moveX += (targetMoveX - input.moveX) * 0.6;
   input.moveY += (targetMoveY - input.moveY) * 0.6;
 
-  // Gerar partículas independentes em todos os arbustos visualmente
-  for (const bush of bushes) {
-    spawnBushParticles(bush);
-  }
+  updateBushParticles();
   updateParticles();
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
