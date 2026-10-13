@@ -231,7 +231,6 @@
   <canvas id="canvas"></canvas>
   <div id="status">A ligar...</div>
 
-  <!-- Ecrã de Login Inicial -->
   <div id="login-screen" class="overlay">
     <div class="modal">
       <h2>Battle Royale</h2>
@@ -240,7 +239,6 @@
     </div>
   </div>
 
-  <!-- Ecrã de Morte -->
   <div id="death-screen" class="overlay">
     <div class="modal">
       <h2 style="color: #dc3545;">Você Morreu!</h2>
@@ -248,7 +246,6 @@
     </div>
   </div>
 
-  <!-- HUD do Jogador -->
   <div id="hud">
     <div id="ammo-container">
       <span id="ammo-text">10 / 10</span>
@@ -261,7 +258,6 @@
     </div>
   </div>
 
-  <!-- Controlos Móveis -->
   <div id="joystick-left" class="joystick-container">
     <div id="knob-left" class="joystick-knob"></div>
   </div>
@@ -293,6 +289,7 @@ let myId = null;
 let players = {};
 let bullets = [];
 let bushes = [];
+let activeBushes = [];
 let particles = [];
 let selfState = { hp: 200, maxHp: 200, ammo: 10, maxAmmo: 10, isReloading: false, isDead: false };
 
@@ -303,7 +300,6 @@ const PLAYER_SIZE = 30;
 let lastCamX = 0;
 let lastCamY = 0;
 
-// Estado dos Controlos Locais
 const input = {
   moveX: 0,
   moveY: 0,
@@ -332,9 +328,6 @@ function drawRoundedRect(context, x, y, width, height, radius) {
   }
 }
 
-/* ==================================================
-   LIGAÇÃO WEBSOCKET
-   ================================================== */
 function connect(username) {
   if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
     return;
@@ -390,6 +383,7 @@ function connect(username) {
         players = {};
         for (const p of data.players) players[p.id] = p;
         bullets = data.bullets || [];
+        activeBushes = data.activeBushes || [];
 
         if (data.self) {
           selfState = data.self;
@@ -401,9 +395,7 @@ function connect(username) {
           }
         }
       }
-    } catch (err) {
-      console.error("Erro ao processar mensagem do servidor:", err);
-    }
+    } catch (err) {}
   };
 }
 
@@ -433,9 +425,6 @@ respawnBtn.addEventListener("click", () => {
   }
 });
 
-/* ==================================================
-   CONTROLOS (TECLADO, RATO, TOUCH)
-   ================================================== */
 const keysPressed = {};
 
 function updateKeyboardMovement() {
@@ -496,9 +485,6 @@ function updateKeyboardAim() {
   if (keysPressed["e"]) input.angle += 0.08;
 }
 
-/* ==================================================
-   GESTOR DE FOCO E PERDA DE CONTROLO
-   ================================================== */
 let resetLeftJoystick = null;
 let resetRightJoystick = null;
 
@@ -529,9 +515,6 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-/* ==================================================
-   JOYSTICKS E BOTÃO FIRE (MÓVEL)
-   ================================================== */
 function setupJoystick(elementId, knobId, onMove, onReset) {
   const joy = document.getElementById(elementId);
   const knob = document.getElementById(knobId);
@@ -625,9 +608,6 @@ fireBtn.addEventListener("pointerup", stopFiring);
 fireBtn.addEventListener("pointercancel", stopFiring);
 fireBtn.addEventListener("lostpointercapture", stopFiring);
 
-/* ==================================================
-   ENVIO DE INPUTS (30 FPS)
-   ================================================== */
 setInterval(() => {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
@@ -644,55 +624,51 @@ setInterval(() => {
 }, 1000 / 30);
 
 /* ==================================================
-   PARTÍCULAS DOS ARBUSTOS (CORRIGIDAS)
+   PARTÍCULAS DOS ARBUSTOS (BASEADAS EM ACTIVEBUSHES E ROTAÇÃO)
    ================================================== */
 let lastParticleTime = 0;
-let lastPlayerX = 0;
-let lastPlayerY = 0;
-let hasLastPosition = false;
+// Rastreia a rotação anterior de cada jogador para detetar giro
+const lastPlayerAngles = {};
 
 function updateBushParticles() {
-  const myPlayer = players[myId];
-  
-  if (!myPlayer || selfState.isDead || myPlayer.inBush === null) {
-    hasLastPosition = false;
-    lastParticleTime = 0;
-    return;
-  }
-
-  if (!hasLastPosition) {
-    lastPlayerX = myPlayer.x;
-    lastPlayerY = myPlayer.y;
-    hasLastPosition = true;
-    return;
-  }
-
-  const movedDist = Math.hypot(myPlayer.x - lastPlayerX, myPlayer.y - lastPlayerY);
-  const isActuallyMoving = movedDist > 0.1;
-
-  lastPlayerX = myPlayer.x;
-  lastPlayerY = myPlayer.y;
-
-  if (!isActuallyMoving) return;
-
   const now = Date.now();
-  if (now - lastParticleTime < 150) return;
+  if (now - lastParticleTime < 150) {
+    return;
+  }
+
+  // Verifica se algum jogador visível está num arbusto ativo e a mover-se ou a girar
+  for (const p of Object.values(players)) {
+    if (p.inBush === null) continue;
+    if (!activeBushes.includes(p.inBush)) continue;
+
+    // Calcula velocidade aparente ou mudança de ângulo (giro)
+    const prevAngle = lastPlayerAngles[p.id] !== undefined ? lastPlayerAngles[p.id] : p.angle;
+    const angleDiff = Math.abs(p.angle - prevAngle);
+    lastPlayerAngles[p.id] = p.angle;
+
+    // Se houver rotação (giro) ou se o próprio jogador local estiver a mover-se
+    const isRotating = angleDiff > 0.05;
+    const isMovingLocal = (p.id === myId && (Math.abs(input.moveX) > 0.05 || Math.abs(input.moveY) > 0.05));
+
+    if (isMovingLocal || isRotating || p.id !== myId) {
+      // Cria partículas perto do jogador dentro do arbusto
+      const px = p.x + PLAYER_SIZE / 2;
+      const py = p.y + PLAYER_SIZE / 2;
+      const angle = Math.random() * Math.PI * 2;
+      const offset = Math.random() * 10;
+
+      particles.push({
+        x: px + Math.cos(angle) * offset,
+        y: py + Math.sin(angle) * offset,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8,
+        size: 2.5 + Math.random() * 2.5,
+        color: Math.random() > 0.5 ? "#a2d04a" : "#4d9129",
+        life: 1.0
+      });
+    }
+  }
   lastParticleTime = now;
-
-  const px = myPlayer.x + PLAYER_SIZE / 2;
-  const py = myPlayer.y + PLAYER_SIZE / 2;
-  const angle = Math.random() * Math.PI * 2;
-  const offset = Math.random() * 10;
-
-  particles.push({
-    x: px + Math.cos(angle) * offset,
-    y: py + Math.sin(angle) * offset,
-    vx: (Math.random() - 0.5) * 0.8,
-    vy: (Math.random() - 0.5) * 0.8,
-    size: 2.5 + Math.random() * 2.5,
-    color: Math.random() > 0.5 ? "#a2d04a" : "#4d9129",
-    life: 1.0
-  });
 }
 
 function updateParticles() {
@@ -746,7 +722,6 @@ function render() {
   ctx.lineWidth = 8;
   ctx.strokeRect(0, 0, worldWidth, worldHeight);
 
-  // Renderização 100% limpa dos arbustos (sem pontos ou bolinhas estáticas fixas no interior)
   for (const bush of bushes) {
     ctx.save();
     ctx.translate(bush.x, bush.y);
