@@ -439,7 +439,6 @@ document.addEventListener("keydown", e => {
   if (k === "r") input.reload = true;
 });
 
-// keyup liberado para funcionar mesmo com a tela de login visível
 document.addEventListener("keyup", e => {
   const k = e.key.toLowerCase();
   keysPressed[k] = false;
