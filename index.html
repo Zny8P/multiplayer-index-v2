@@ -231,22 +231,22 @@
 <body>
 
   <canvas id="canvas"></canvas>
-  <div id="status">Conectando...[span_2](start_span)[span_2](end_span)</div>
+  <div id="status">Conectando...</div>
 
   <!-- Tela de Login Inicial -->
   <div id="login-screen" class="overlay">
     <div class="modal">
-      <h2>Battle Royale[span_3](start_span)[span_3](end_span)</h2>
+      <h2>Battle Royale</h2>
       <input type="text" id="username-input" placeholder="Seu Nome" maxlength="12">
-      <button id="join-btn">Entrar no Jogo[span_4](start_span)[span_4](end_span)</button>
+      <button id="join-btn">Entrar no Jogo</button>
     </div>
   </div>
 
   <!-- Tela de Morte -->
   <div id="death-screen" class="overlay">
     <div class="modal">
-      <h2 style="color: #dc3545;">Você Morreu[span_5](start_span)[span_5](end_span)!</h2>
-      <button id="respawn-btn">Renascer[span_6](start_span)[span_6](end_span)</button>
+      <h2 style="color: #dc3545;">Você Morreu!</h2>
+      <button id="respawn-btn">Renascer</button>
     </div>
   </div>
 
@@ -256,11 +256,11 @@
       <div id="hp-bar-bg">
         <div id="hp-bar-fill"></div>
       </div>
-      <div id="hp-text">200 / 200 HP[span_7](start_span)[span_7](end_span)</div>
+      <div id="hp-text">200 / 200 HP</div>
     </div>
 
     <div id="ammo-container">
-      <span id="ammo-text">10 / 10[span_8](start_span)[span_8](end_span)</span>
+      <span id="ammo-text">10 / 10</span>
     </div>
   </div>
 
@@ -273,7 +273,7 @@
     <div id="knob-right" class="joystick-knob"></div>
   </div>
 
-  <div id="fire-btn">TIRO[span_9](start_span)[span_9](end_span)</div>
+  <div id="fire-btn">TIRO</div>
 
 <script>
 const canvas = document.getElementById("canvas");
@@ -303,11 +303,11 @@ let worldWidth = 2000;
 let worldHeight = 2000;
 const PLAYER_SIZE = 30;
 
-// Posição de memória para evitar pulo de câmera ao morrer[span_10](start_span)[span_10](end_span)
+// Posição de memória para evitar pulo de câmera ao morrer
 let lastCamX = 0;
 let lastCamY = 0;
 
-// Estado dos Controles Locais[span_11](start_span)[span_11](end_span)
+// Estado dos Controles Locais
 const input = {
   up: false,
   down: false,
@@ -340,22 +340,22 @@ function connect(username) {
   socket = new WebSocket(serverURL);
 
   socket.onopen = () => {
-    status.textContent = "🟢 Conectado[span_12](start_span)[span_12](end_span)";
+    status.textContent = "🟢 Conectado";
     socket.send(JSON.stringify({ type: "join", name: username }));
   };
 
   socket.onclose = () => {
-    status.textContent = "🔴 Desconectado (tentando reconectar...)[span_13](start_span)[span_13](end_span)";
+    status.textContent = "🔴 Desconectado (tentando reconectar...)";
     joinBtn.disabled = false;
-    joinBtn.textContent = "Entrar no Jogo[span_14](start_span)[span_14](end_span)";
+    joinBtn.textContent = "Entrar no Jogo";
 
     setTimeout(() => { if (username) connect(username); }, 3000);
   };
 
   socket.onerror = () => {
-    status.textContent = "⚠️ Erro de conexão[span_15](start_span)[span_15](end_span)";
+    status.textContent = "⚠️ Erro de conexão";
     joinBtn.disabled = false;
-    joinBtn.textContent = "Entrar no Jogo[span_16](start_span)[span_16](end_span)";
+    joinBtn.textContent = "Entrar no Jogo";
     socket.close();
   };
 
@@ -373,7 +373,7 @@ function connect(username) {
       resetInputs();
 
       joinBtn.disabled = false;
-      joinBtn.textContent = "Entrar no Jogo[span_17](start_span)[span_17](end_span)";
+      joinBtn.textContent = "Entrar no Jogo";
     }
 
     if (data.type === "state") {
@@ -397,13 +397,13 @@ function connect(username) {
 function updateHUD(selfData) {
   const hpPct = Math.max(0, (selfData.hp / selfData.maxHp) * 100);
   hpBarFill.style.width = `${hpPct}%`;
-  hpText.textContent = `${selfData.hp} / ${selfData.maxHp} HP[span_18](start_span)[span_18](end_span)`;
+  hpText.textContent = `${selfData.hp} / ${selfData.maxHp} HP`;
 
   if (selfData.isReloading) {
-    ammoText.textContent = "RECARREGANDO...[span_19](start_span)[span_19](end_span)";
+    ammoText.textContent = "RECARREGANDO...";
     ammoText.style.color = "#ffc107";
   } else {
-    ammoText.textContent = `${selfData.ammo} / ${selfData.maxAmmo}[span_20](start_span)[span_20](end_span)`;
+    ammoText.textContent = `${selfData.ammo} / ${selfData.maxAmmo}`;
     ammoText.style.color = "white";
   }
 }
