@@ -746,7 +746,7 @@ function render() {
   ctx.lineWidth = 8;
   ctx.strokeRect(0, 0, worldWidth, worldHeight);
 
-  // Renderização limpa dos arbustos (sem bolinhas/partículas estáticas)
+  // Renderização limpa dos arbustos (sem pontos fixos no interior)
   for (const bush of bushes) {
     ctx.save();
     ctx.translate(bush.x, bush.y);
@@ -850,4 +850,3 @@ requestAnimationFrame(render);
 
 </body>
 </html>
-    
