@@ -196,6 +196,7 @@
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.5);
       border: 2px solid rgba(255, 255, 255, 0.8);
+      pointer-events: none;
     }
 
     #fire-btn {
@@ -302,7 +303,7 @@ const PLAYER_SIZE = 30;
 let lastCamX = 0;
 let lastCamY = 0;
 
-// Estado dos Controlos Locais (Movimento Livre com Componentes Vetoriais)
+// Estado dos Controlos Locais
 const input = {
   moveX: 0,
   moveY: 0,
@@ -310,6 +311,9 @@ const input = {
   shoot: false,
   reload: false
 };
+
+let targetMoveX = 0;
+let targetMoveY = 0;
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
@@ -442,8 +446,8 @@ function updateKeyboardMovement() {
   if (keysPressed["w"] || keysPressed["arrowup"]) y -= 1;
   if (keysPressed["s"] || keysPressed["arrowdown"]) y += 1;
 
-  input.moveX = x;
-  input.moveY = y;
+  targetMoveX = x;
+  targetMoveY = y;
 }
 
 document.addEventListener("keydown", e => {
@@ -501,6 +505,8 @@ let resetRightJoystick = null;
 function resetInputs() {
   input.moveX = 0;
   input.moveY = 0;
+  targetMoveX = 0;
+  targetMoveY = 0;
   input.shoot = false;
   input.reload = false;
 
@@ -583,10 +589,10 @@ function setupJoystick(elementId, knobId, onMove, onReset) {
 
 resetLeftJoystick = setupJoystick("joystick-left", "knob-left",
   (nx, ny) => {
-    input.moveX = nx;
-    input.moveY = ny;
+    targetMoveX = nx;
+    targetMoveY = ny;
   },
-  () => { input.moveX = 0; input.moveY = 0; }
+  () => { targetMoveX = 0; targetMoveY = 0; }
 );
 
 resetRightJoystick = setupJoystick("joystick-right", "knob-right",
@@ -670,6 +676,10 @@ function updateParticles() {
    ================================================== */
 function render() {
   updateKeyboardAim();
+
+  // Transição suave (interpolação) para os inputs de movimento
+  input.moveX += (targetMoveX - input.moveX) * 0.6;
+  input.moveY += (targetMoveY - input.moveY) * 0.6;
 
   for (const bush of bushes) {
     if (activeBushes.includes(bush.id)) {
@@ -810,4 +820,3 @@ requestAnimationFrame(render);
 
 </body>
 </html>
-  
